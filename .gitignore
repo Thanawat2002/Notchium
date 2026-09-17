@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Xcode — build products & per-user state
+DerivedData/
+build/
+*.xcuserstate
+**/xcuserdata/
+
+# Xcode packages / SPM
+.swiftpm/
+.build/
+
+# Claude Code — keep shared skills, ignore local machine settings
+.claude/settings.local.json
