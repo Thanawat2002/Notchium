@@ -49,7 +49,8 @@ struct NotchRootView: View {
     }
 
     private var notchVisible: Bool {
-        model.isExpanded || model.hasNowPlaying || model.micMuted || model.outputMuted
+        model.snapActive || model.isExpanded || model.hasNowPlaying
+            || model.micMuted || model.outputMuted
     }
 
     /// Interpolate the bottom corner radius (12 collapsed → 26 expanded) from
@@ -63,24 +64,36 @@ struct NotchRootView: View {
 
     @ViewBuilder private var contentLayer: some View {
         ZStack {
-            switch model.presentation {
-            case .expanded:
-                switch model.expandedKind {
-                case .nowPlaying:   NowPlayingView(model: model).transition(.opacity)
-                case .notification: NotificationView(model: model).transition(notificationTransition)
+            if model.snapActive {
+                // A window is being dragged toward the notch — the snap UI takes
+                // over the island until the drag ends.
+                switch model.snapPhase {
+                case .picker: SnapPickerView(model: model).transition(.opacity)
+                case .armed:  ArmedPill().transition(.opacity)
+                case .off:    EmptyView()
                 }
-            case .collapsed, .sideControls:
-                // The pill and its side-controls variant share one layout so the
-                // artwork/equalizer stay put while the mute buttons slide in.
-                // Appears nicely when collapsing; vanishes instantly when the
-                // big card opens so there's no blurry flash of the small pill.
-                CollapsedView(model: model, showControls: model.presentation == .sideControls)
-                    .transition(.asymmetric(insertion: morphTransition, removal: .identity))
+            } else {
+                switch model.presentation {
+                case .expanded:
+                    switch model.expandedKind {
+                    case .nowPlaying:   NowPlayingView(model: model).transition(.opacity)
+                    case .notification: NotificationView(model: model).transition(notificationTransition)
+                    }
+                case .collapsed, .sideControls:
+                    // The pill and its side-controls variant share one layout so
+                    // artwork/equalizer stay put while the mute buttons slide in.
+                    // Appears nicely when collapsing; vanishes instantly when the
+                    // big card opens so there's no blurry flash of the small pill.
+                    CollapsedView(model: model, showControls: model.presentation == .sideControls)
+                        .transition(.asymmetric(insertion: morphTransition, removal: .identity))
+                }
             }
         }
         .animation(reduceMotion ? Motion.fadeIn : (model.isExpanded ? Motion.expand : Motion.collapse),
                    value: model.presentation)
         .animation(Motion.fadeIn, value: model.expandedKind)
+        .animation(reduceMotion ? Motion.fadeIn : (model.snapPhase == .picker ? Motion.expand : Motion.collapse),
+                   value: model.snapPhase)
     }
 
     /// Content blurs + scales while morphing between states (plain fade if Reduce Motion).
@@ -292,6 +305,140 @@ struct NotificationView: View {
         var rest = AttributedString(" · \(model.notifWhen)")
         rest.foregroundColor = .white.opacity(0.55)
         return app + rest
+    }
+}
+
+// MARK: - Snap layouts
+
+/// The five snap arrangements. Each exposes its sub-regions as normalized rects
+/// (top-left origin, y down) that partition the tile — shared by the tile
+/// drawing, the pointer hit-test, and the on-screen zone mapping.
+enum LayoutKind: CaseIterable {
+    case halves, seventyThirty, thirds, leftPlusStack, quad
+
+    var regions: [CGRect] {
+        switch self {
+        case .halves:
+            return [CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                    CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
+        case .seventyThirty:
+            return [CGRect(x: 0, y: 0, width: 0.7, height: 1),
+                    CGRect(x: 0.7, y: 0, width: 0.3, height: 1)]
+        case .thirds:
+            return [CGRect(x: 0, y: 0, width: 1.0 / 3, height: 1),
+                    CGRect(x: 1.0 / 3, y: 0, width: 1.0 / 3, height: 1),
+                    CGRect(x: 2.0 / 3, y: 0, width: 1.0 / 3, height: 1)]
+        case .leftPlusStack:
+            return [CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                    CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5),
+                    CGRect(x: 0.5, y: 0.5, width: 0.5, height: 0.5)]
+        case .quad:
+            return [CGRect(x: 0, y: 0, width: 0.5, height: 0.5),
+                    CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5),
+                    CGRect(x: 0, y: 0.5, width: 0.5, height: 0.5),
+                    CGRect(x: 0.5, y: 0.5, width: 0.5, height: 0.5)]
+        }
+    }
+}
+
+/// Fixed geometry of the picker's tile row, shared by the view (to lay out) and
+/// the drag monitor (to hit-test the pointer against the exact same rects).
+enum PickerMetrics {
+    static let tileW: CGFloat = 78
+    static let tileH: CGFloat = 54
+    static let gap: CGFloat = 16
+    static let count = 5
+    static let topPad: CGFloat = 18       // content top → caption
+    static let captionH: CGFloat = 18
+    static let captionGap: CGFloat = 16   // caption → tiles
+    /// Distance from the content's top edge to the top of the tile row.
+    static var rowTop: CGFloat { topPad + captionH + captionGap }
+    static var totalW: CGFloat { tileW * CGFloat(count) + gap * CGFloat(count - 1) }
+    /// Left edge of tile `i` measured from the content's left edge.
+    static func tileLeft(_ i: Int, contentWidth: CGFloat) -> CGFloat {
+        (contentWidth - totalW) / 2 + CGFloat(i) * (tileW + gap)
+    }
+}
+
+/// The 5-tile layout picker (design A) that drops from the notch while a window
+/// is dragged up to it. Laid out at absolute positions from `PickerMetrics` so
+/// the monitor's hit-test lines up exactly with what's drawn.
+struct SnapPickerView: View {
+    @ObservedObject var model: NotchModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
+    private let kinds = LayoutKind.allCases
+    var body: some View {
+        VStack(spacing: PickerMetrics.captionGap) {
+            Text("วางเพื่อจัดหน้าต่าง")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(height: PickerMetrics.captionH)
+            HStack(spacing: PickerMetrics.gap) {
+                ForEach(Array(kinds.enumerated()), id: \.offset) { i, kind in
+                    LayoutTile(kind: kind,
+                               activeRegion: model.snapTarget?.tile == i ? model.snapTarget?.region : nil)
+                        .frame(width: PickerMetrics.tileW, height: PickerMetrics.tileH)
+                        .staggerIn(shown, delay: 0.05 + Double(i) * 0.03, reduceMotion: reduceMotion)
+                }
+            }
+        }
+        .padding(.top, PickerMetrics.topPad)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { shown = true }
+        .onDisappear { shown = false }
+    }
+}
+
+/// A small "aware" pill shown while the window nears the notch but hasn't
+/// reached it yet — a downward chevron hints "keep going to open layouts".
+struct ArmedPill: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "rectangle.split.2x1")
+                .font(.system(size: 13, weight: .medium))
+            Image(systemName: "chevron.compact.down")
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundStyle(.white.opacity(0.85))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// One layout icon: flat grey blocks on a dark tile, matching the mock. Blocks
+/// are placed from the kind's normalized regions; the region under the pointer
+/// (`activeRegion`) lights up blue. (bg #1a1a1d · border #2c2c31 · blocks #3c3f47)
+struct LayoutTile: View {
+    let kind: LayoutKind
+    /// Index of the region under the pointer, or nil when this tile isn't hovered.
+    var activeRegion: Int?
+    private let block = Color(red: 0.235, green: 0.247, blue: 0.278)
+    private let blockHover = Color(red: 0.36, green: 0.55, blue: 0.95)
+    private let hoverBlue = Color(red: 0.231, green: 0.510, blue: 0.965)
+    private var active: Bool { activeRegion != nil }
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let p: CGFloat = 8, g: CGFloat = 5
+            let iw = w - p * 2, ih = h - p * 2
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(active ? Color(red: 0.11, green: 0.14, blue: 0.22)
+                                 : Color(red: 0.102, green: 0.102, blue: 0.114))
+                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(active ? hoverBlue : Color(red: 0.173, green: 0.173, blue: 0.192),
+                                      lineWidth: active ? 2 : 1))
+                ForEach(Array(kind.regions.enumerated()), id: \.offset) { idx, r in
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(idx == activeRegion ? blockHover.opacity(0.95) : block)
+                        .frame(width: max(0, r.width * iw - g), height: max(0, r.height * ih - g))
+                        .position(x: p + r.midX * iw, y: p + r.midY * ih)
+                }
+            }
+        }
+        .shadow(color: active ? hoverBlue.opacity(0.45) : .clear, radius: 8, y: 2)
+        .offset(y: active ? -4 : 0)          // lift the hovered tile
+        .animation(.spring(response: 0.28, dampingFraction: 0.7), value: active)
     }
 }
 

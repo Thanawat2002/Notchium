@@ -7,7 +7,8 @@ struct MyApp: App {
 
     var body: some Scene {
         MenuBarExtra("Notch Island", systemImage: "rectangle.topthird.inset.filled") {
-            MenuContent(model: appDelegate.model)
+            MenuContent(model: appDelegate.model,
+                        onEnableSnap: { appDelegate.enableSnapLayouts() })
         }
     }
 }
@@ -17,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = NotchModel()
     private var controller: NotchController?
     private var micHotKey: HotKey?
+    private var snap: WindowSnapController?
+    private var snapPreview: SnapPreviewController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)   // menu-bar app, no Dock icon
@@ -29,11 +32,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                            modifiers: UInt32(cmdKey | optionKey | controlKey)) { [weak self] in
             MainActor.assumeIsolated { self?.model.toggleMicMute() }
         }
+
+        // Snap layouts: starts watching only once Accessibility is granted.
+        snap = WindowSnapController(model: model)
+        snap?.start()
+        snapPreview = SnapPreviewController(model: model)   // on-screen zone preview
+    }
+
+    /// Prompt for Accessibility, then keep polling until it's granted so the
+    /// snap monitor can start without a relaunch.
+    func enableSnapLayouts() {
+        Accessibility.request()
+        guard !Accessibility.isTrusted else { snap?.start(); return }
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard Accessibility.isTrusted else { return }
+                self?.snap?.start()
+                timer.invalidate()
+            }
+        }
     }
 }
 
 struct MenuContent: View {
     @ObservedObject var model: NotchModel
+    var onEnableSnap: () -> Void = {}
 
     var body: some View {
         Button("Now Playing") {
@@ -42,6 +65,12 @@ struct MenuContent: View {
         }
         Button("Show Notification") {
             model.presentNotification()
+        }
+        Divider()
+        if Accessibility.isTrusted {
+            Text("Window Snapping: On")
+        } else {
+            Button("Enable Window Snapping…", action: onEnableSnap)
         }
         Divider()
         Button(model.outputMuted ? "Unmute Speaker" : "Mute Speaker") {

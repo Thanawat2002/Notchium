@@ -127,8 +127,9 @@ final class NotchController {
     }
 
     private func sampleHover() {
-        // Pinned open: stay put on the current screen, don't chase the cursor.
-        guard !model.pinned else { return }
+        // Pinned open, or a snap-layout drag is in progress: don't let hover
+        // fight for the island.
+        guard !model.pinned, !model.snapActive else { return }
 
         // Follow the cursor to another display. Only re-home while fully
         // collapsed — never yank an open island out from under the pointer.
