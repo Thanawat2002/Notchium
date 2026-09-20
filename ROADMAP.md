@@ -5,9 +5,13 @@
 
 โครงโค้ดปัจจุบัน:
 - `NotchIsland/NotchModel.swift` — state + ข้อมูลตัวอย่าง + ขนาด (notch-aware)
-- `NotchIsland/NotchView.swift` — SwiftUI ทั้ง 3 states
-- `NotchIsland/NotchController.swift` — NSPanel ลอย, จัดตำแหน่ง/ย่อขยาย, ตรวจ hover
+- `NotchIsland/NotchView.swift` — SwiftUI ทุก state (collapsed / side controls / now playing / notification / snap picker)
+- `NotchIsland/NotchController.swift` — NSPanel ลอย, จัดตำแหน่ง/ย่อขยาย, ตรวจ hover, ตามจอ
+- `NotchIsland/NowPlayingProvider.swift` · `SystemAudio.swift` · `HotKey.swift` · `Motion.swift`
+- `NotchIsland/WindowSnap.swift` — ตรวจจับลากหน้าต่าง + snap layouts (AX)
+- `NotchIsland/SnapPreview.swift` — overlay กรอบ preview โซนเป้าหมาย
 - `NotchIsland/MyApp.swift` — entry + MenuBarExtra
+- `scripts/dev-run.sh` — build + เซ็น self-signed + relaunch (สิทธิ์ AX อยู่ข้าม build)
 
 ---
 
@@ -64,6 +68,18 @@
 - **แบบ B** (การ์ดย่อยจาง ๆ) เป็นธีมสลับได้
 - Widget เสริม: ตัวจับเวลา, แบตเตอรี่, AirDrop, ไฟล์ที่ลากมาวาง
 
+## ✅ Phase 8 — Snap Layouts 🪟 (เสร็จ — v1)
+ลากหน้าต่างขึ้นไปหา notch → เกาะขยายเป็นแผงเลือก layout แล้วปล่อยเพื่อจัดหน้าต่าง (ดีไซน์แบบ A, 5 tile)
+- ✅ ตรวจจับการลากหน้าต่างด้วย global mouse + Accessibility (AX) — `WindowSnapController`
+  - ขอสิทธิ์ AX ครั้งเดียว (เมนู "Enable Window Snapping…"), เริ่ม watch เมื่อ trusted
+  - กรอง scroll/select ออกด้วยการเช็คหน้าต่างขยับจริง + fallback ดูการเลื่อนเคอร์เซอร์
+  - **รองรับ Electron** (Spotify/Claude ที่วาด title bar เอง) ผ่าน fallback `kAXFocusedWindow` ของแอปหน้าสุด
+- ✅ 3 phase: off → **armed** (ใกล้ notch) → **picker** (ถึง notch, แผงเลื่อนลง)
+- ✅ **เลือกโซนย่อย** ในแต่ละ tile: ครึ่งซ้ายขวา / 70-30 / สามคอลัมน์ / ซ้าย+ซ้อน / สี่ช่อง — ชี้บล็อกไหน snap โซนนั้น (`LayoutKind.regions`, `PickerMetrics` ชุดเดียวใช้ทั้งวาด+hit-test)
+- ✅ **preview overlay** โปร่งแสงบนโซนเป้าหมายจริง (`SnapPreviewController`) — retarget ทันที ไม่กระพริบ
+- ✅ snap จริงผ่าน AX (`kAXPosition`/`kAXSize`), เคารพ menu bar/Dock (`visibleFrame`)
+- ⏳ ยังเป็น v1: โซนอิง `visibleFrame` ของจอที่เมาส์อยู่ (ยังไม่รองรับ snap ข้ามจอ), gap/ระยะขอบยังไม่ปรับได้, ยังไม่จำ layout
+
 ---
 
 ## จุดปรับแต่งที่ใช้บ่อย
@@ -72,6 +88,9 @@
 - `NotchController.openZone / stayZone` — โซน hover เปิด/อยู่ค้าง
 - `NotchController.activeScreen() / adopt(_:)` — เลือก/สลับจอที่ island ไปเกาะ (ตามเมาส์)
 - `NotchController` spring/animation duration — `0.42s ease-out`
+- `WindowSnapController.armThreshold / pickerThreshold / pickerHalfWidth` — เกณฑ์ arm/เปิด picker ตอนลาก
+- `SnapZones.frame(_:on:)` — โซนเป้าหมายต่อ tile/region (แก้ layout ที่นี่)
+- `PickerMetrics` — ขนาด/ระยะ tile (ต้องตรงกันทั้ง view วาดและ monitor hit-test)
 
 ## ดีไซน์อ้างอิง
 - Canvas (แบบ A): https://claude.ai/artifact/Gmv8EGmsD5WAkmTsYiSr2e
