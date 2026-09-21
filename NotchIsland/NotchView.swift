@@ -35,7 +35,6 @@ struct NotchRootView: View {
                     .padding(.top, inset)
             }
             .frame(width: nw, height: nh)
-            .shadow(color: .black.opacity(0.45), radius: 10, x: 0, y: 5)
             // Pin is toggled from the menu bar only — clicking the notch used to
             // pin it by accident (a missed button tap kept it stuck open).
             // Hide entirely when idle (no music, not interacting); hovering the
