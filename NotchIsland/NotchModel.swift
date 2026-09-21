@@ -27,12 +27,38 @@ enum HoverZone: Equatable {
     case drop     // below the notch line → full card
 }
 
+/// Snap-layouts drag state, driven by the window-drag monitor.
+///   • off    — no window being dragged toward the notch
+///   • armed  — a window is being dragged up near the notch (aware, no panel)
+///   • picker — dragged up to the notch → the layout picker panel is open
+enum SnapPhase: Equatable {
+    case off
+    case armed
+    case picker
+}
+
+/// A specific sub-zone being targeted: which layout tile (0–4) and which region
+/// within it (e.g. left vs right of the halves tile).
+struct SnapTarget: Equatable {
+    let tile: Int
+    let region: Int
+}
+
 /// Shared state for the Notch Island overlay. Drives both the SwiftUI
 /// content and the floating panel's size/position.
 @MainActor
 final class NotchModel: ObservableObject {
     /// Where the pointer sits relative to the notch (set by the controller).
     @Published var hoverZone: HoverZone = .none
+    /// Snap-layouts drag state (set by the window-drag monitor). Takes over the
+    /// island's content while a window is being dragged toward the notch.
+    @Published var snapPhase: SnapPhase = .off
+    /// The sub-zone (tile + region) under the pointer while the picker is open,
+    /// or nil when the pointer isn't over a tile.
+    @Published var snapTarget: SnapTarget?
+    /// Target zone (global AppKit coords) to preview on screen for that sub-zone,
+    /// or nil when nothing should be previewed.
+    @Published var snapPreviewFrame: CGRect?
     /// Force the notch to stay open regardless of hover (from the menu bar).
     @Published var pinned = false
     /// A notification is presenting itself (auto-dismisses).
@@ -57,8 +83,12 @@ final class NotchModel: ObservableObject {
         }
     }
 
+    /// A window is being dragged toward the notch.
+    var snapActive: Bool { snapPhase != .off }
+
     /// The full card is showing (drives window clearance + big-card geometry).
-    var isExpanded: Bool { presentation == .expanded }
+    /// The snap picker also drops below the notch, so it needs the same clearance.
+    var isExpanded: Bool { snapPhase == .picker || presentation == .expanded }
 
     private var dismissTask: Task<Void, Never>?
     private let audio = SystemAudio()
@@ -222,7 +252,20 @@ final class NotchModel: ObservableObject {
     }
     let expandedSize = CGSize(width: 480, height: 170)
 
+    /// Snap-layouts panel (the 5-tile picker, design A) and the armed pill.
+    let snapPickerSize = CGSize(width: 560, height: 176)
+    var armedPillSize: CGSize {
+        let base = notchWidth > 0 ? notchWidth + sideModule * 2 + 30 : 230
+        let h = notchHeight > 0 ? notchHeight + 4 : 36
+        return CGSize(width: base, height: h)
+    }
+
     var contentSize: CGSize {
+        switch snapPhase {
+        case .picker: return snapPickerSize
+        case .armed:  return armedPillSize
+        case .off:    break
+        }
         switch presentation {
         case .collapsed:    return collapsedSize
         case .sideControls: return sideControlsSize

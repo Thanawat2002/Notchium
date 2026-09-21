@@ -127,8 +127,9 @@ final class NotchController {
     }
 
     private func sampleHover() {
-        // Pinned open: stay put on the current screen, don't chase the cursor.
-        guard !model.pinned else { return }
+        // Pinned open, or a snap-layout drag is in progress: don't let hover
+        // fight for the island.
+        guard !model.pinned, !model.snapActive else { return }
 
         // Follow the cursor to another display. Only re-home while fully
         // collapsed — never yank an open island out from under the pointer.
@@ -173,41 +174,34 @@ final class NotchController {
     ///   • expanded — sticky across the whole card footprint, so reaching for a
     ///     control never collapses it.
     private func desiredZone(at p: NSPoint, on screen: NSScreen) -> HoverZone {
+        let shape = shapeRect(on: screen)
         switch model.presentation {
         case .expanded:
-            return stayZone(on: screen).contains(p) ? .drop : .none
+            return shape.contains(p) ? .drop : .none
         case .collapsed, .sideControls:
-            if centerZone(on: screen).contains(p) { return .drop }
-            if stripZone(on: screen).contains(p) { return .strip }
-            return .none
+            guard shape.contains(p) else { return .none }
+            return centerZone(on: screen).contains(p) ? .drop : .strip
         }
     }
 
-    /// Central column of the strip, over the notch. Hovering here opens the full
-    /// card; the flanks on either side open the side controls.
+    /// The black island's actual on-screen footprint for the current state, so
+    /// the hover zone matches the visible shape exactly — no slack spilling into
+    /// where the drop shadow used to be.
+    private func shapeRect(on screen: NSScreen) -> NSRect {
+        let size = model.contentSize
+        let h = model.isExpanded ? size.height + topInset : size.height
+        return NSRect(x: screen.frame.midX - size.width / 2,
+                      y: screen.frame.maxY - h,
+                      width: size.width, height: h)
+    }
+
+    /// Central column of the pill (over the notch) → opens the full card; the
+    /// flanks on either side open the side controls. Kept within the shape.
     private func centerZone(on screen: NSScreen) -> NSRect {
-        let strip = stripZone(on: screen)
-        let w = max(120, model.notchWidth + 40)
+        let shape = shapeRect(on: screen)
+        let w = min(shape.width, max(120, model.notchWidth + 40))
         return NSRect(x: screen.frame.midX - w / 2,
-                      y: strip.minY, width: w, height: strip.height)
-    }
-
-    /// Thin band across the very top, over the pill and its side-controls width.
-    private func stripZone(on screen: NSScreen) -> NSRect {
-        let w = model.sideControlsSize.width + 24
-        let h = model.collapsedSize.height + 10
-        return NSRect(x: screen.frame.midX - w / 2,
-                      y: screen.frame.maxY - h,
-                      width: w, height: h)
-    }
-
-    /// The expanded footprint plus slack — hovering anywhere here keeps it open.
-    private func stayZone(on screen: NSScreen) -> NSRect {
-        let w = model.expandedSize.width + 20
-        let h = model.expandedSize.height + topInset + 16
-        return NSRect(x: screen.frame.midX - w / 2,
-                      y: screen.frame.maxY - h,
-                      width: w, height: h)
+                      y: shape.minY, width: w, height: shape.height)
     }
 
     // MARK: Layout
