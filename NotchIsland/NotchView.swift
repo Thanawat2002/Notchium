@@ -48,7 +48,9 @@ struct NotchRootView: View {
     }
 
     private var notchVisible: Bool {
-        model.snapActive || model.isExpanded || model.hasNowPlaying
+        // Show for any non-collapsed state (incl. side controls on hover), a snap
+        // drag, live music, or an active mute indicator. Hidden only when truly idle.
+        model.snapActive || model.presentation != .collapsed || model.hasNowPlaying
             || model.micMuted || model.outputMuted
     }
 
