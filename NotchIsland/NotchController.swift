@@ -28,6 +28,8 @@ final class NotchController {
 
     private var hoverTimer: Timer?
     private var hoverOutAt: Date?
+    private var hoverInAt: Date?
+    private var hoverInTarget: HoverZone = .none
     private var cancellable: AnyCancellable?
     private var screenObserver: NSObjectProtocol?
 
@@ -145,15 +147,29 @@ final class NotchController {
 
         if target != .none {
             hoverOutAt = nil
-            if model.hoverZone != target {
-                // Haptic only when first engaging from idle, not on internal
-                // strip → drop transitions.
-                let engaging = model.hoverZone == .none
+            if model.hoverZone == .none {
+                // Not engaged yet — require a short dwell so merely sweeping the
+                // pointer across the top doesn't open the island. The big card
+                // waits longer than the light side controls.
+                if hoverInTarget != target {
+                    hoverInTarget = target
+                    let dwell = target == .drop ? Motion.hoverInBig : Motion.hoverInSide
+                    hoverInAt = Date().addingTimeInterval(dwell)
+                }
+                if let deadline = hoverInAt, Date() >= deadline {
+                    model.hoverZone = target
+                    Haptics.engage()          // tap when it actually opens
+                    hoverInAt = nil
+                    hoverInTarget = .none
+                }
+            } else if model.hoverZone != target {
+                // Already open — switching center ↔ flank is instant, no dwell.
                 model.hoverZone = target
-                if engaging { Haptics.engage() }
             }
         } else if model.hoverZone != .none {
             // Leaving waits a grace period so a corner-cross doesn't flicker.
+            hoverInAt = nil
+            hoverInTarget = .none
             if let deadline = hoverOutAt {
                 if Date() >= deadline {
                     model.hoverZone = .none
@@ -164,6 +180,8 @@ final class NotchController {
             }
         } else {
             hoverOutAt = nil
+            hoverInAt = nil
+            hoverInTarget = .none
         }
     }
 

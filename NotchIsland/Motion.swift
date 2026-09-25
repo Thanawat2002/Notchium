@@ -47,6 +47,10 @@ enum Motion {
 
     /// Grace period before collapsing after the pointer leaves.
     static let hoverOutDelay: TimeInterval = 0.25
+    /// Dwell before *opening* on hover, so a fly-through across the top doesn't
+    /// trigger. The disruptive big card waits longer than the light side controls.
+    static let hoverInBig: TimeInterval = 0.22
+    static let hoverInSide: TimeInterval = 0.12
 
     /// Staggered reveal delays: container → artwork → text → progress → controls.
     static let staggerArtwork  = 0.08
