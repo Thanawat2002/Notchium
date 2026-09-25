@@ -128,7 +128,10 @@ struct CollapsedView: View {
             // Blank block mirroring the trailing controls, so the notch gap
             // stays centered on the physical notch as the pill grows sideways.
             if showControls { Color.clear.frame(width: model.controlsBlock) }
-            Artwork(size: art, corner: art * 0.28, showGlyph: false, image: model.artwork)
+            // Artwork only when something is actually playing.
+            if model.hasNowPlaying {
+                Artwork(size: art, corner: art * 0.28, showGlyph: false, image: model.artwork)
+            }
             // Keep a gap the width of the notch so the two items stay outside it.
             Spacer(minLength: model.notchWidth)
             rightSlot(h: h)
@@ -136,11 +139,13 @@ struct CollapsedView: View {
         .padding(.horizontal, 14)
     }
 
-    /// The equalizer, followed by either passive mute indicators (collapsed) or
-    /// tappable mic/speaker toggles (side controls).
+    /// The equalizer (only while playing), followed by either passive mute
+    /// indicators (collapsed) or tappable mic/speaker toggles (side controls).
     @ViewBuilder private func rightSlot(h: CGFloat) -> some View {
         HStack(spacing: 4) {
-            Equalizer(active: model.isPlaying, height: max(11, h * 0.34), color: model.accentColor)
+            if model.hasNowPlaying {
+                Equalizer(active: model.isPlaying, height: max(11, h * 0.34), color: model.accentColor)
+            }
             if showControls {
                 IconButton(model.micMuted ? "mic.slash.fill" : "mic.fill",
                            size: h * 0.42,
