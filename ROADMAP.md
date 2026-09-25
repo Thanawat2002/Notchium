@@ -80,6 +80,18 @@
 - ✅ snap จริงผ่าน AX (`kAXPosition`/`kAXSize`), เคารพ menu bar/Dock (`visibleFrame`)
 - ⏳ ยังเป็น v1: โซนอิง `visibleFrame` ของจอที่เมาส์อยู่ (ยังไม่รองรับ snap ข้ามจอ), gap/ระยะขอบยังไม่ปรับได้, ยังไม่จำ layout
 
+## Phase 9 — Drop Shelf (ที่พักไฟล์ชั่วคราว) 📎
+ลากไฟล์/รูปเข้า notch → เกาะเก็บไว้ชั่วคราว → ลากออกไปวางที่ chat / โฟลเดอร์ / แอปอื่น
+(แนวเดียวกับ Dropover / Yoink / NotchNook shelf)
+- **รับ drop เข้า** — panel เป็น drag destination (`NSDraggingDestination` / SwiftUI `.onDrop`), รับ `NSItemProvider` (ไฟล์/รูป/URL/ข้อความ)
+  - hover ลากไฟล์เข้าใกล้ notch → เกาะขยายเป็นถาดโชว์ thumbnail (ต่อยอดจาก presentation/ snap phase pattern)
+  - เก็บได้หลายชิ้น เรียงเป็นแถว, ลบทีละชิ้น / เคลียร์ทั้งหมด
+- **ลากออก** — เป็น drag source (`NSFilePromiseProvider` / เขียนไฟล์ชั่วคราวแล้วให้ file URL) เพื่อลากไปวางแอปอื่นได้
+  - ไฟล์ที่ลากเข้าจากที่อื่น: อ้าง URL เดิม หรือ copy ลง temp (`FileManager` / `NSTemporaryDirectory`)
+  - รูปจาก clipboard/ลากจากเว็บ: เขียนเป็นไฟล์ชั่วคราวก่อนให้ลากออก
+- **จัดการอายุไฟล์** — temp items เคลียร์เมื่อปิดแอป หรือตั้งเวลา, กันเต็มดิสก์
+- ⚠️ ข้อควรระวัง: sandbox ปิดอยู่แล้ว (เข้าถึงไฟล์ได้), แต่ต้องจัดการ security-scoped ถ้าเปิด sandbox ภายหลัง; ลากออกจาก non-activating panel ต้องทดสอบว่า drag session เริ่มได้
+
 ---
 
 ## จุดปรับแต่งที่ใช้บ่อย
