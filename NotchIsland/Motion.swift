@@ -50,9 +50,8 @@ enum Motion {
     /// Grace period before collapsing after the pointer leaves.
     static let hoverOutDelay: TimeInterval = 0.25
     /// Dwell before *opening* on hover, so a fly-through across the top doesn't
-    /// trigger. The disruptive big card waits longer than the light side controls.
-    static let hoverInBig: TimeInterval = 0.22
-    static let hoverInSide: TimeInterval = 0.12
+    /// trigger.
+    static let hoverIn: TimeInterval = 0.22
     /// Allow / Deny stay inert this long after they appear, so a pointer that
     /// was already resting where the card drops can't approve by accident.
     static let decisionArmDelay: TimeInterval = 0.6

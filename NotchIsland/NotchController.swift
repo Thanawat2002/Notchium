@@ -29,7 +29,6 @@ final class NotchController {
     private var hoverTimer: Timer?
     private var hoverOutAt: Date?
     private var hoverInAt: Date?
-    private var hoverInTarget: HoverZone = .none
     private var cancellable: AnyCancellable?
     /// Last frame sent to the panel, so model changes that don't affect the
     /// geometry (progress ticks, track text) don't restart the resize animation.
@@ -146,36 +145,26 @@ final class NotchController {
 
         guard let screen = currentScreen else { return }
         let p = NSEvent.mouseLocation                     // global, origin bottom-left
-        let target = desiredZone(at: p, on: screen)
+        let over = wantsCard(at: p, on: screen)
 
-        if target != .none {
+        if over {
             hoverOutAt = nil
-            if model.hoverZone == .none {
-                // Not engaged yet — require a short dwell so merely sweeping the
-                // pointer across the top doesn't open the island. The big card
-                // waits longer than the light side controls.
-                if hoverInTarget != target {
-                    hoverInTarget = target
-                    let dwell = target == .drop ? Motion.hoverInBig : Motion.hoverInSide
-                    hoverInAt = Date.now.addingTimeInterval(dwell)
-                }
-                if let deadline = hoverInAt, Date.now >= deadline {
-                    model.hoverZone = target
-                    Haptics.engage()          // tap when it actually opens
-                    hoverInAt = nil
-                    hoverInTarget = .none
-                }
-            } else if model.hoverZone != target {
-                // Already open — switching center ↔ flank is instant, no dwell.
-                model.hoverZone = target
+            guard !model.hovering else { return }
+            // Not engaged yet — require a short dwell so merely sweeping the
+            // pointer across the top doesn't open the island.
+            let deadline = hoverInAt ?? Date.now.addingTimeInterval(Motion.hoverIn)
+            hoverInAt = deadline
+            if Date.now >= deadline {
+                model.hovering = true
+                Haptics.engage()          // tap when it actually opens
+                hoverInAt = nil
             }
-        } else if model.hoverZone != .none {
+        } else if model.hovering {
             // Leaving waits a grace period so a corner-cross doesn't flicker.
             hoverInAt = nil
-            hoverInTarget = .none
             if let deadline = hoverOutAt {
                 if Date.now >= deadline {
-                    model.hoverZone = .none
+                    model.hovering = false
                     hoverOutAt = nil
                 }
             } else {
@@ -184,28 +173,17 @@ final class NotchController {
         } else {
             hoverOutAt = nil
             hoverInAt = nil
-            hoverInTarget = .none
         }
     }
 
-    /// Resolve the pointer position into a hover zone. The top strip is split by
-    /// horizontal position: the **center** column (over the notch) opens the
-    /// full card, the **flanks** on either side open the side controls.
-    ///   • collapsed / sideControls — center → card, flanks → side controls.
-    ///     With nothing to show in the card (no music, no Claude session) the
-    ///     center opens the side controls too, instead of an empty card.
-    ///   • expanded — sticky across the whole card footprint, so reaching for a
-    ///     control never collapses it.
-    private func desiredZone(at p: NSPoint, on screen: NSScreen) -> HoverZone {
-        let shape = shapeRect(on: screen)
-        switch model.presentation {
-        case .expanded:
-            return shape.contains(p) ? .drop : .none
-        case .collapsed, .sideControls:
-            guard shape.contains(p) else { return .none }
-            let center = model.hasCardContent && centerZone(on: screen).contains(p)
-            return center ? .drop : .strip
-        }
+    /// Whether the pointer should open (or keep open) the card. Anywhere on the
+    /// pill opens it — but only when there's something to show (music or a
+    /// Claude session); otherwise hovering does nothing. Once open it's sticky
+    /// across the whole card footprint, so reaching for a control never
+    /// collapses it.
+    private func wantsCard(at p: NSPoint, on screen: NSScreen) -> Bool {
+        guard shapeRect(on: screen).contains(p) else { return false }
+        return model.presentation == .expanded || model.hasCardContent
     }
 
     /// The black island's actual on-screen footprint for the current state, so
@@ -217,15 +195,6 @@ final class NotchController {
         return NSRect(x: screen.frame.midX - size.width / 2,
                       y: screen.frame.maxY - h,
                       width: size.width, height: h)
-    }
-
-    /// Central column of the pill (over the notch) → opens the full card; the
-    /// flanks on either side open the side controls. Kept within the shape.
-    private func centerZone(on screen: NSScreen) -> NSRect {
-        let shape = shapeRect(on: screen)
-        let w = min(shape.width, max(120, model.notchWidth + 40))
-        return NSRect(x: screen.frame.midX - w / 2,
-                      y: shape.minY, width: w, height: shape.height)
     }
 
     // MARK: Layout

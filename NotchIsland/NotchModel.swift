@@ -17,22 +17,11 @@ enum ClaudeGlance: Equatable {
 }
 
 /// What the island is currently showing.
-///   • collapsed    — the idle pill (artwork + equalizer + mute indicators)
-///   • sideControls — pill grown sideways with tappable mic/speaker buttons
-///                    (pointer over the top strip)
-///   • expanded     — the full now-playing / notification card
-///                    (pointer dropped below the notch, pinned, or an alert)
+///   • collapsed — the idle pill (artwork + equalizer + mute indicators)
+///   • expanded  — the full card (hovered, pinned, or an alert)
 enum Presentation: Equatable {
     case collapsed
-    case sideControls
     case expanded
-}
-
-/// Where the pointer sits relative to the notch, set by the controller.
-enum HoverZone: Equatable {
-    case none     // away
-    case strip    // the thin band across the top → side controls
-    case drop     // below the notch line → full card
 }
 
 /// Snap-layouts drag state, driven by the window-drag monitor.
@@ -56,11 +45,11 @@ struct SnapTarget: Equatable {
 /// content and the floating panel's size/position.
 @MainActor
 final class NotchModel: ObservableObject {
-    /// Where the pointer sits relative to the notch (set by the controller).
-    @Published var hoverZone: HoverZone = .none {
+    /// The pointer is over the island (set by the controller).
+    @Published var hovering = false {
         didSet {
             // Opening the card by hover: show what matters most right now.
-            if hoverZone == .drop, oldValue != .drop, !alertActive { expandedKind = preferredCardKind }
+            if hovering, !oldValue, !alertActive { expandedKind = preferredCardKind }
         }
     }
     /// Snap-layouts drag state (set by the window-drag monitor). Takes over the
@@ -85,15 +74,9 @@ final class NotchModel: ObservableObject {
     @Published var outputMuted = false
     @Published var micMuted = false
 
-    /// The resolved layout: pin/alert force the full card; otherwise the hover
-    /// zone decides (top strip → side controls, below the notch → full card).
+    /// The resolved layout: pin, alert, or hover open the full card.
     var presentation: Presentation {
-        if pinned || alertActive { return .expanded }
-        switch hoverZone {
-        case .strip: return .sideControls
-        case .drop:  return .expanded
-        case .none:  return .collapsed
-        }
+        pinned || alertActive || hovering ? .expanded : .collapsed
     }
 
     /// A window is being dragged toward the notch.
@@ -262,10 +245,6 @@ final class NotchModel: ObservableObject {
 
     /// Slot on each side of the notch for the artwork / equalizer.
     private let sideModule: CGFloat = 44
-    /// Width of one trailing controls block (the mic + speaker buttons). Added
-    /// on the right *and* mirrored as blank space on the left, so the notch gap
-    /// stays centered when the pill grows into `.sideControls`.
-    let controlsBlock: CGFloat = 60
 
     // Sizes are given in points, matching the "แบบ A" spec (1pt = 1px).
     var collapsedSize: CGSize {
@@ -280,14 +259,6 @@ final class NotchModel: ObservableObject {
         if claudeGlance != nil { extra += hasNowPlaying ? 12 : 24 }
         let h = notchHeight > 0 ? notchHeight : 32
         return CGSize(width: base + extra, height: h)
-    }
-    /// The pill grown sideways to fit tappable mic/speaker buttons. Same height
-    /// as the collapsed pill (it stays in the top strip, never drops down);
-    /// wider by a controls block on each side to keep the notch gap centered.
-    var sideControlsSize: CGSize {
-        let base = notchWidth > 0 ? notchWidth + sideModule * 2 : 200
-        let h = notchHeight > 0 ? notchHeight : 32
-        return CGSize(width: base + controlsBlock * 2, height: h)
     }
     let expandedSize = CGSize(width: 480, height: 170)
 
@@ -306,9 +277,8 @@ final class NotchModel: ObservableObject {
         case .off:    break
         }
         switch presentation {
-        case .collapsed:    return collapsedSize
-        case .sideControls: return sideControlsSize
-        case .expanded:     return expandedSize
+        case .collapsed: return collapsedSize
+        case .expanded:  return expandedSize
         }
     }
 
@@ -353,7 +323,7 @@ final class NotchModel: ObservableObject {
     }
 
     /// There's something worth opening the big card for. Without it, hovering
-    /// the notch only grows the side controls.
+    /// the notch does nothing.
     var hasCardContent: Bool { hasNowPlaying || !claudeSessions.isEmpty }
 
     /// Cards the user can flip between while expanded (shown as tabs when > 1).
