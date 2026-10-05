@@ -24,6 +24,16 @@
         }
       }
     },
+    "Allow": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อนุญาต"
+          }
+        }
+      }
+    },
     "Browsing the web": {
       "localizations": {
         "th": {
@@ -130,6 +140,26 @@
         }
       }
     },
+    "Denied": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปฏิเสธแล้ว"
+          }
+        }
+      }
+    },
+    "Deny": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่อนุญาต"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "th": {
@@ -150,6 +180,16 @@
         }
       }
     },
+    "Edit %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แก้ %@"
+          }
+        }
+      }
+    },
     "Editing %@": {
       "localizations": {
         "th": {
@@ -166,6 +206,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "เปิดใช้การจัดหน้าต่าง…"
+          }
+        }
+      }
+    },
+    "Fetch a web page": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โหลดหน้าเว็บ"
           }
         }
       }
@@ -383,6 +433,16 @@
         }
       }
     },
+    "Run a command": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รันคำสั่ง"
+          }
+        }
+      }
+    },
     "Running a command": {
       "localizations": {
         "th": {
@@ -489,6 +549,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "เปิดเสียงลำโพง"
+          }
+        }
+      }
+    },
+    "Use %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้ %@"
           }
         }
       }

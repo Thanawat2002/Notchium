@@ -20,6 +20,16 @@ struct ClaudeSession: Identifiable, Equatable {
     var updatedAt: Date
     /// Where the session runs, so tapping its row can switch there.
     var host: ClaudeHost?
+    /// A permission prompt held for an answer from the notch.
+    var request: PermissionAsk?
+}
+
+/// A tool call waiting on Allow / Deny.
+struct PermissionAsk: Equatable {
+    let tool: String
+    /// What it wants to do, in full ("npm install", "Edit NotchView.swift").
+    let summary: String
+    let since: Date
 }
 
 /// Live status of Claude Code sessions, fed by Claude Code hooks.
@@ -35,6 +45,12 @@ struct ClaudeSession: Identifiable, Equatable {
 /// so the app needs no permissions, and when it isn't running the hook just
 /// fails silently. `ClaudeHooks.install()` writes those hooks into
 /// `~/.claude/settings.json`.
+///
+/// `PermissionRequest` is the exception: Claude Code waits for that hook
+/// before showing its own prompt, so the listener holds the connection until
+/// the user taps Allow / Deny in the notch and answers with the decision. An
+/// empty answer (timeout, "open in terminal", app not running) makes Claude
+/// Code fall back to its normal prompt.
 @MainActor
 final class ClaudeActivity {
     nonisolated static let port: UInt16 = 47821
@@ -47,6 +63,8 @@ final class ClaudeActivity {
     var onFinished: (@MainActor (ClaudeSession) -> Void)?
 
     private var sessions: [String: ClaudeSession] = [:]
+    /// Held `PermissionRequest` connections, by session.
+    private var held: [String: (conn: NWConnection, timeout: Task<Void, Never>)] = [:]
     private var listener: NWListener?
     private var pruneTimer: Timer?
 
@@ -55,6 +73,9 @@ final class ClaudeActivity {
     /// A session with no events this long is assumed gone (terminal closed
     /// without SessionEnd). Generous, since a single build can run for minutes.
     private let staleTTL: TimeInterval = 30 * 60
+    /// How long a permission prompt waits on the notch before going back to
+    /// the terminal. Below the hook's own `--max-time`.
+    nonisolated static let decisionTimeout: TimeInterval = 110
 
     func start() {
         guard listener == nil else { return }
@@ -90,8 +111,8 @@ final class ClaudeActivity {
                 var buffer = buffer
                 if let chunk { buffer.append(chunk) }
                 if let (head, body) = Self.request(from: buffer) {
-                    self?.handle(body, pid: Self.header("x-claude-pid", in: head).flatMap { pid_t($0) })
-                    Self.reply(conn)
+                    let pid = Self.header("x-claude-pid", in: head).flatMap { pid_t($0) }
+                    if self?.handle(body, pid: pid, conn: conn) != true { Self.reply(conn) }
                 } else if isComplete || error != nil || buffer.count > 1_000_000 {
                     conn.cancel()
                 } else {
@@ -116,17 +137,77 @@ final class ClaudeActivity {
             .map { $0.dropFirst(name.count + 1).trimmingCharacters(in: .whitespaces) }
     }
 
-    private static func reply(_ conn: NWConnection) {
-        let response = Data("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".utf8)
+    /// Answer and close. No body → the hook prints nothing.
+    private static func reply(_ conn: NWConnection, body: Data? = nil) {
+        var response: Data
+        if let body {
+            response = Data(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                + "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n").utf8)
+            response.append(body)
+        } else {
+            response = Data("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".utf8)
+        }
         conn.send(content: response, completion: .contentProcessed { _ in conn.cancel() })
+    }
+
+    // MARK: Permission decisions
+
+    /// Answer a held permission prompt: allow, deny, or nil to hand it back
+    /// to the terminal's own prompt.
+    func answer(sessionID id: String, allow: Bool?) {
+        guard let (conn, timeout) = held.removeValue(forKey: id) else { return }
+        timeout.cancel()
+        if let allow {
+            let output = ["hookSpecificOutput": ["hookEventName": "PermissionRequest",
+                                                 "decision": ["behavior": allow ? "allow" : "deny"]]]
+            Self.reply(conn, body: try? JSONSerialization.data(withJSONObject: output))
+        } else {
+            Self.reply(conn)
+        }
+        guard var session = sessions[id] else { return }
+        session.request = nil
+        if let allow {
+            session.state = .working
+            session.detail = allow ? String(localized: "Thinking…") : String(localized: "Denied")
+        }
+        session.updatedAt = .now
+        sessions[id] = session
+        publish()
+    }
+
+    private func hold(_ conn: NWConnection, for id: String) {
+        answer(sessionID: id, allow: nil)       // a newer prompt supersedes an older one
+        let timeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.decisionTimeout))
+            guard !Task.isCancelled else { return }
+            self?.answer(sessionID: id, allow: nil)
+        }
+        held[id] = (conn, timeout)
+        // If Claude gives up on the hook (Esc, its own timeout) curl goes away —
+        // stop offering buttons that can no longer do anything.
+        conn.receive(minimumIncompleteLength: 1, maximumLength: 1) { [weak self] _, _, isComplete, error in
+            guard isComplete || error != nil else { return }
+            MainActor.assumeIsolated { self?.dropHeld(id, conn) }
+        }
+    }
+
+    private func dropHeld(_ id: String, _ conn: NWConnection) {
+        guard let entry = held[id], entry.conn === conn else { return }
+        entry.timeout.cancel()
+        held[id] = nil
+        conn.cancel()
+        sessions[id]?.request = nil
+        publish()
     }
 
     // MARK: Events
 
-    private func handle(_ body: Data, pid: pid_t?) {
+    /// Returns true when it kept `conn` open to answer later (a held prompt).
+    @discardableResult
+    private func handle(_ body: Data, pid: pid_t?, conn: NWConnection) -> Bool {
         guard let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
               let id = json["session_id"] as? String,
-              let event = json["hook_event_name"] as? String else { return }
+              let event = json["hook_event_name"] as? String else { return false }
         let now = Date.now
         let project = (json["cwd"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? ""
         var session = sessions[id] ?? ClaudeSession(
@@ -137,9 +218,31 @@ final class ClaudeActivity {
         if let pid, session.host?.claudePID != pid { session.host = ClaudeHost.resolve(claudePID: pid) }
         let previous = sessions[id]?.state
         session.updatedAt = now
+        var holding = false
+
+        // While a prompt is held, other tool events (parallel calls) mustn't
+        // flip the session out of "waiting" and hide its buttons.
+        if held[id] != nil, ["PreToolUse", "PostToolUse", "Notification"].contains(event) {
+            sessions[id] = session
+            return false
+        }
 
         switch event {
+        case "PermissionRequest":
+            // If you're already looking at the terminal, let its own prompt
+            // show right away instead of holding it here.
+            if let host = session.host,
+               NSWorkspace.shared.frontmostApplication?.processIdentifier == host.appPID { return false }
+            let tool = json["tool_name"] as? String ?? ""
+            let summary = Self.summarize(tool: tool, input: json["tool_input"] as? [String: Any] ?? [:])
+            session.state = .waiting
+            session.detail = summary
+            session.request = PermissionAsk(tool: tool, summary: summary, since: now)
+            hold(conn, for: id)
+            holding = true
         case "UserPromptSubmit":
+            answer(sessionID: id, allow: nil)
+            session.request = nil
             session.state = .working
             session.startedAt = now
             session.detail = String(localized: "Thinking…")
@@ -155,18 +258,21 @@ final class ClaudeActivity {
         case "Notification":
             // "Waiting for your input" fires a minute after every finished turn —
             // that's not news, the session is already shown as done.
-            if json["notification_type"] as? String == "idle_prompt" { return }
+            if json["notification_type"] as? String == "idle_prompt" { return false }
             session.state = .waiting
             session.detail = json["message"] as? String ?? String(localized: "Needs your attention")
         case "Stop":
+            answer(sessionID: id, allow: nil)
+            session.request = nil
             session.state = .done
             session.detail = String(localized: "Done")
         case "SessionEnd":
+            answer(sessionID: id, allow: nil)
             sessions[id] = nil
             publish()
-            return
+            return false
         default:
-            return
+            return false
         }
 
         sessions[id] = session
@@ -174,6 +280,25 @@ final class ClaudeActivity {
         if session.state != previous {
             if session.state == .waiting { onNeedsAttention?(session) }
             if session.state == .done { onFinished?(session) }
+        }
+        return holding
+    }
+
+    /// What a permission prompt asks for, in full, for the Allow / Deny row.
+    private static func summarize(tool: String, input: [String: Any]) -> String {
+        let file = (input["file_path"] as? String ?? input["notebook_path"] as? String)
+            .map { URL(fileURLWithPath: $0).lastPathComponent } ?? ""
+        switch tool {
+        case "Bash":
+            let command = (input["command"] as? String ?? "")
+                .split(whereSeparator: \.isNewline).joined(separator: " ")
+            return command.isEmpty ? String(localized: "Run a command") : command
+        case "Edit", "MultiEdit", "Write", "NotebookEdit":
+            return String(localized: "Edit \(file)")
+        case "WebFetch":
+            return input["url"] as? String ?? String(localized: "Fetch a web page")
+        default:
+            return String(localized: "Use \(tool)")
         }
     }
 
@@ -224,23 +349,29 @@ enum ClaudeHooks {
     /// (an Edit's tool_input), which the listener never sends.
     static let command = "curl -s --max-time 1 -H 'Expect:' -H \"X-Claude-PID: $PPID\" --data-binary @- "
         + "\(endpoint) >/dev/null 2>&1 || true"
+    /// Waits for the notch's answer and prints it for Claude Code (prints
+    /// nothing on failure → Claude Code shows its normal prompt).
+    static let decisionCommand = "curl -s --max-time \(Int(ClaudeActivity.decisionTimeout) + 10) -H 'Expect:' "
+        + "-H \"X-Claude-PID: $PPID\" --data-binary @- \(endpoint) 2>/dev/null || true"
     /// Identifies our hooks (current or older versions of the command).
     private static let endpoint = "http://127.0.0.1:\(ClaudeActivity.port)/claude"
-    private static let events = ["UserPromptSubmit", "PreToolUse", "PostToolUse",
-                                 "Notification", "Stop", "SessionEnd"]
-    private static let toolEvents: Set = ["PreToolUse", "PostToolUse"]
+    private static let events = ["UserPromptSubmit": command, "PreToolUse": command,
+                                 "PostToolUse": command, "Notification": command,
+                                 "Stop": command, "SessionEnd": command,
+                                 "PermissionRequest": decisionCommand]
+    private static let toolEvents: Set = ["PreToolUse", "PostToolUse", "PermissionRequest"]
     static var settingsURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/settings.json")
     }
 
-    /// Every event carries the current command. (Parsed, not a text search —
+    /// Every event carries its current command. (Parsed, not a text search —
     /// the command's quotes come back escaped in the file.)
     static func isInstalled(at url: URL = settingsURL) -> Bool {
         guard let data = try? Data(contentsOf: url),
               let settings = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let hooks = settings["hooks"] as? [String: Any] else { return false }
-        return events.allSatisfy { event in
+        return events.allSatisfy { event, command in
             (hooks[event] as? [[String: Any]] ?? []).contains { group in
                 (group["hooks"] as? [[String: Any]] ?? []).contains { $0["command"] as? String == command }
             }
@@ -266,7 +397,7 @@ enum ClaudeHooks {
         }
 
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        for event in events {
+        for (event, command) in events {
             // Drop our earlier hooks (and any group left empty), keep the rest.
             var groups = (hooks[event] as? [[String: Any]] ?? []).compactMap { group -> [String: Any]? in
                 guard let entries = group["hooks"] as? [[String: Any]] else { return group }
@@ -276,7 +407,10 @@ enum ClaudeHooks {
                 group["hooks"] = kept
                 return group
             }
-            var group: [String: Any] = ["hooks": [["type": "command", "command": command]]]
+            var hook: [String: Any] = ["type": "command", "command": command]
+            // Outlast curl's own limit so the hook is never killed mid-answer.
+            if command == decisionCommand { hook["timeout"] = Int(ClaudeActivity.decisionTimeout) + 20 }
+            var group: [String: Any] = ["hooks": [hook]]
             if toolEvents.contains(event) { group["matcher"] = "*" }
             groups.append(group)
             hooks[event] = groups
