@@ -324,13 +324,12 @@ final class NowPlayingProvider {
     private func loadImage(_ urlString: String, completion: @escaping (NSImage?) -> Void) {
         if let cached = imageCache[urlString] { completion(cached); return }
         guard let url = URL(string: urlString) else { completion(nil); return }
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            let image = data.flatMap { NSImage(data: $0) }
-            DispatchQueue.main.async {
-                if let image { self?.imageCache[urlString] = image }
-                completion(image)
-            }
-        }.resume()
+        Task { [weak self] in
+            let data = try? await URLSession.shared.data(from: url).0
+            let image = data.flatMap(NSImage.init(data:))
+            if let image { self?.imageCache[urlString] = image }
+            completion(image)
+        }
     }
 
     // MARK: Publish

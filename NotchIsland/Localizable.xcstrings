@@ -1,0 +1,528 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@\n%@": {
+      "shouldTranslate": false
+    },
+    "%@ of %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ จาก %2$@"
+          }
+        }
+      }
+    },
+    "+%lld more": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อีก %lld รายการ"
+          }
+        }
+      }
+    },
+    "Browsing the web": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังค้นเว็บ"
+          }
+        }
+      }
+    },
+    "Calendar": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปฏิทิน"
+          }
+        }
+      }
+    },
+    "Check that ~/.claude/settings.json is valid JSON, then try again.": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตรวจว่า ~/.claude/settings.json เป็น JSON ที่ถูกต้อง แล้วลองอีกครั้ง"
+          }
+        }
+      }
+    },
+    "Claude": {
+      "shouldTranslate": false
+    },
+    "Claude Code": {
+      "shouldTranslate": false
+    },
+    "Claude Code Status: On": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สถานะ Claude Code: เปิด"
+          }
+        }
+      }
+    },
+    "Claude Sessions": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เซสชัน Claude"
+          }
+        }
+      }
+    },
+    "Claude finished": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude ทำเสร็จแล้ว"
+          }
+        }
+      }
+    },
+    "Claude is working": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude กำลังทำงาน"
+          }
+        }
+      }
+    },
+    "Claude needs your attention": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude ต้องการให้คุณดู"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิด"
+          }
+        }
+      }
+    },
+    "Couldn't update Claude Code settings": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อัปเดตการตั้งค่า Claude Code ไม่ได้"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสร็จแล้ว"
+          }
+        }
+      }
+    },
+    "Drop to arrange window": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วางเพื่อจัดหน้าต่าง"
+          }
+        }
+      }
+    },
+    "Editing %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังแก้ %@"
+          }
+        }
+      }
+    },
+    "Enable Window Snapping…": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดใช้การจัดหน้าต่าง…"
+          }
+        }
+      }
+    },
+    "Just now": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เมื่อสักครู่"
+          }
+        }
+      }
+    },
+    "Keep Expanded": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขยายค้างไว้"
+          }
+        }
+      }
+    },
+    "Microphone muted": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดไมโครโฟนอยู่"
+          }
+        }
+      }
+    },
+    "Mute Microphone": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดไมโครโฟน"
+          }
+        }
+      }
+    },
+    "Mute Speaker": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดเสียงลำโพง"
+          }
+        }
+      }
+    },
+    "Needs you": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รอคุณอยู่"
+          }
+        }
+      }
+    },
+    "Needs your attention": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ต้องการให้คุณดู"
+          }
+        }
+      }
+    },
+    "Next Track": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพลงถัดไป"
+          }
+        }
+      }
+    },
+    "Notch Island": {
+      "shouldTranslate": false
+    },
+    "Nothing playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีเพลงกำลังเล่น"
+          }
+        }
+      }
+    },
+    "Now Playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่น"
+          }
+        }
+      }
+    },
+    "Now playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่น"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิด"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หยุดชั่วคราว"
+          }
+        }
+      }
+    },
+    "Play": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เล่น"
+          }
+        }
+      }
+    },
+    "Play something in Music or Spotify": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดเพลงใน Music หรือ Spotify"
+          }
+        }
+      }
+    },
+    "Playback position": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตำแหน่งที่เล่น"
+          }
+        }
+      }
+    },
+    "Playing in %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่นใน %@"
+          }
+        }
+      }
+    },
+    "Previous Track": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพลงก่อนหน้า"
+          }
+        }
+      }
+    },
+    "Quit Notch Island": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ออกจาก Notch Island"
+          }
+        }
+      }
+    },
+    "Reading %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังอ่าน %@"
+          }
+        }
+      }
+    },
+    "Remind again": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เตือนอีกครั้ง"
+          }
+        }
+      }
+    },
+    "Running a command": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังรันคำสั่ง"
+          }
+        }
+      }
+    },
+    "Running an agent": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังรัน agent"
+          }
+        }
+      }
+    },
+    "Searching the code": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังค้นโค้ด"
+          }
+        }
+      }
+    },
+    "Show Claude Code Status…": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แสดงสถานะ Claude Code…"
+          }
+        }
+      }
+    },
+    "Show Notification": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แสดงการแจ้งเตือน"
+          }
+        }
+      }
+    },
+    "Speaker muted": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดเสียงลำโพงอยู่"
+          }
+        }
+      }
+    },
+    "Studio B · with Nan, Pete and 4 others": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ห้อง Studio B · กับ Nan, Pete และอีก 4 คน"
+          }
+        }
+      }
+    },
+    "Switches to its window": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สลับไปที่หน้าต่างของเซสชันนี้"
+          }
+        }
+      }
+    },
+    "Thinking…": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังคิด…"
+          }
+        }
+      }
+    },
+    "Unmute Microphone": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดไมโครโฟน"
+          }
+        }
+      }
+    },
+    "Unmute Speaker": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดเสียงลำโพง"
+          }
+        }
+      }
+    },
+    "Using %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังใช้ %@"
+          }
+        }
+      }
+    },
+    "Weekly design review starts in 10 minutes": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ประชุมออกแบบรายสัปดาห์ เริ่มในอีก 10 นาที"
+          }
+        }
+      }
+    },
+    "Window Snapping: On": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "จัดหน้าต่าง: เปิดอยู่"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
