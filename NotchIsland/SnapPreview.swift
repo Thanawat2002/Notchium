@@ -75,10 +75,14 @@ struct SnapPreviewView: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(.ultraThinMaterial)
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.white.opacity(0.12)))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.9), lineWidth: 2))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.white.opacity(0.12))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.white.opacity(0.9), lineWidth: 2)
+            }
             .padding(7)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

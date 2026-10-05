@@ -31,6 +31,9 @@ final class NotchController {
     private var hoverInAt: Date?
     private var hoverInTarget: HoverZone = .none
     private var cancellable: AnyCancellable?
+    /// Last frame sent to the panel, so model changes that don't affect the
+    /// geometry (progress ticks, track text) don't restart the resize animation.
+    private var lastFrame: NSRect?
     private var screenObserver: NSObjectProtocol?
 
     init(model: NotchModel) {
@@ -154,9 +157,9 @@ final class NotchController {
                 if hoverInTarget != target {
                     hoverInTarget = target
                     let dwell = target == .drop ? Motion.hoverInBig : Motion.hoverInSide
-                    hoverInAt = Date().addingTimeInterval(dwell)
+                    hoverInAt = Date.now.addingTimeInterval(dwell)
                 }
-                if let deadline = hoverInAt, Date() >= deadline {
+                if let deadline = hoverInAt, Date.now >= deadline {
                     model.hoverZone = target
                     Haptics.engage()          // tap when it actually opens
                     hoverInAt = nil
@@ -171,12 +174,12 @@ final class NotchController {
             hoverInAt = nil
             hoverInTarget = .none
             if let deadline = hoverOutAt {
-                if Date() >= deadline {
+                if Date.now >= deadline {
                     model.hoverZone = .none
                     hoverOutAt = nil
                 }
             } else {
-                hoverOutAt = Date().addingTimeInterval(Motion.hoverOutDelay)
+                hoverOutAt = Date.now.addingTimeInterval(Motion.hoverOutDelay)
             }
         } else {
             hoverOutAt = nil
@@ -256,6 +259,8 @@ final class NotchController {
             y: screen.frame.maxY - h,
             width: w,
             height: h)
+        guard frame != lastFrame else { return }
+        lastFrame = frame
 
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if animated && !reduceMotion {

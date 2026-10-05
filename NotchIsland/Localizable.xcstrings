@@ -1,0 +1,312 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@\n%@": {
+      "shouldTranslate": false
+    },
+    "%@ of %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ จาก %2$@"
+          }
+        }
+      }
+    },
+    "Calendar": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปฏิทิน"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิด"
+          }
+        }
+      }
+    },
+    "Drop to arrange window": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วางเพื่อจัดหน้าต่าง"
+          }
+        }
+      }
+    },
+    "Enable Window Snapping…": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดใช้การจัดหน้าต่าง…"
+          }
+        }
+      }
+    },
+    "Just now": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เมื่อสักครู่"
+          }
+        }
+      }
+    },
+    "Keep Expanded": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขยายค้างไว้"
+          }
+        }
+      }
+    },
+    "Microphone muted": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดไมโครโฟนอยู่"
+          }
+        }
+      }
+    },
+    "Mute Microphone": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดไมโครโฟน"
+          }
+        }
+      }
+    },
+    "Mute Speaker": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดเสียงลำโพง"
+          }
+        }
+      }
+    },
+    "Next Track": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพลงถัดไป"
+          }
+        }
+      }
+    },
+    "Notch Island": {
+      "shouldTranslate": false
+    },
+    "Nothing playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีเพลงกำลังเล่น"
+          }
+        }
+      }
+    },
+    "Now Playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่น"
+          }
+        }
+      }
+    },
+    "Now playing": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่น"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิด"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "หยุดชั่วคราว"
+          }
+        }
+      }
+    },
+    "Play": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เล่น"
+          }
+        }
+      }
+    },
+    "Play something in Music or Spotify": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดเพลงใน Music หรือ Spotify"
+          }
+        }
+      }
+    },
+    "Playback position": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตำแหน่งที่เล่น"
+          }
+        }
+      }
+    },
+    "Playing in %@": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังเล่นใน %@"
+          }
+        }
+      }
+    },
+    "Previous Track": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เพลงก่อนหน้า"
+          }
+        }
+      }
+    },
+    "Quit Notch Island": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ออกจาก Notch Island"
+          }
+        }
+      }
+    },
+    "Remind again": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เตือนอีกครั้ง"
+          }
+        }
+      }
+    },
+    "Show Notification": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แสดงการแจ้งเตือน"
+          }
+        }
+      }
+    },
+    "Speaker muted": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ปิดเสียงลำโพงอยู่"
+          }
+        }
+      }
+    },
+    "Studio B · with Nan, Pete and 4 others": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ห้อง Studio B · กับ Nan, Pete และอีก 4 คน"
+          }
+        }
+      }
+    },
+    "Unmute Microphone": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดไมโครโฟน"
+          }
+        }
+      }
+    },
+    "Unmute Speaker": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดเสียงลำโพง"
+          }
+        }
+      }
+    },
+    "Weekly design review starts in 10 minutes": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ประชุมออกแบบรายสัปดาห์ เริ่มในอีก 10 นาที"
+          }
+        }
+      }
+    },
+    "Window Snapping: On": {
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "จัดหน้าต่าง: เปิดอยู่"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

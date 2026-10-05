@@ -70,7 +70,7 @@ struct NotchRootView: View {
                 // over the island until the drag ends.
                 switch model.snapPhase {
                 case .picker: SnapPickerView(model: model).transition(.opacity)
-                case .armed:  ArmedPill().transition(.opacity)
+                case .armed:  ArmedPill(notchWidth: model.notchWidth).transition(.opacity)
                 case .off:    EmptyView()
                 }
             } else {
@@ -131,6 +131,7 @@ struct CollapsedView: View {
             // Artwork only when something is actually playing.
             if model.hasNowPlaying {
                 Artwork(size: art, corner: art * 0.28, showGlyph: false, image: model.artwork)
+                    .accessibilityHidden(true)
             }
             // Keep a gap the width of the notch so the two items stay outside it.
             Spacer(minLength: model.notchWidth)
@@ -145,14 +146,17 @@ struct CollapsedView: View {
         HStack(spacing: 4) {
             if model.hasNowPlaying {
                 Equalizer(active: model.isPlaying, height: max(11, h * 0.34), color: model.accentColor)
+                    .accessibilityHidden(true)
             }
             if showControls {
-                IconButton(model.micMuted ? "mic.slash.fill" : "mic.fill",
+                IconButton(model.micMuted ? "Unmute Microphone" : "Mute Microphone",
+                           symbol: model.micMuted ? "mic.slash.fill" : "mic.fill",
                            size: h * 0.42,
                            tint: model.micMuted ? mutedRed : .white) {
                     model.toggleMicMute()
                 }
-                IconButton(model.outputMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                IconButton(model.outputMuted ? "Unmute Speaker" : "Mute Speaker",
+                           symbol: model.outputMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                            size: h * 0.42,
                            tint: model.outputMuted ? mutedRed : .white) {
                     model.toggleOutputMute()
@@ -162,11 +166,13 @@ struct CollapsedView: View {
                     Image(systemName: "mic.slash.fill")
                         .font(.system(size: h * 0.3))
                         .foregroundStyle(mutedRed)
+                        .accessibilityLabel("Microphone muted")
                 }
                 if model.outputMuted {
                     Image(systemName: "speaker.slash.fill")
                         .font(.system(size: h * 0.3))
                         .foregroundStyle(mutedRed)
+                        .accessibilityLabel("Speaker muted")
                 }
             }
         }
@@ -178,6 +184,7 @@ struct CollapsedView: View {
 struct NowPlayingView: View {
     @ObservedObject var model: NotchModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var shown = false
     @State private var sharp = false
     var body: some View {
@@ -185,6 +192,7 @@ struct NowPlayingView: View {
             // Top: artwork + title/artist + equalizer
             HStack(alignment: .top, spacing: 16) {
                 Artwork(size: 74, corner: 13, showGlyph: true, image: model.artwork)
+                    .accessibilityHidden(true)
                     .overlay(alignment: .bottomTrailing) {
                         if let icon = model.sourceIcon {
                             Image(nsImage: icon)
@@ -194,6 +202,7 @@ struct NowPlayingView: View {
                                 .shadow(color: .black.opacity(0.45), radius: 2.5, x: 0, y: 1)
                                 // Nudge it past the corner so it reads as a badge.
                                 .offset(x: 7, y: 6)
+                                .accessibilityLabel("Playing in \(model.sourceAppName)")
                         }
                     }
                     .staggerIn(shown, delay: Motion.staggerArtwork, reduceMotion: reduceMotion)
@@ -204,7 +213,7 @@ struct NowPlayingView: View {
                         .lineLimit(1)
                     Text(model.trackMeta)
                         .font(.system(size: 11.5))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(Color.dimWhite(0.55, contrast))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -213,6 +222,7 @@ struct NowPlayingView: View {
                 // equalizer's own wave. Let it run free like the collapsed one.
                 Equalizer(active: model.isPlaying, height: 16, color: model.accentColor)
                     .opacity(model.isPlaying ? 1 : 0.35)
+                    .accessibilityHidden(true)
             }
 
             // Progress sits low, just above the controls, with times at each end.
@@ -223,7 +233,7 @@ struct NowPlayingView: View {
                     Text(model.elapsed)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.16))
+                            Capsule().fill(Color.dimWhite(0.16, contrast))
                             Capsule().fill(.white.opacity(0.9))
                                 .frame(width: geo.size.width * model.progress)
                         }
@@ -232,7 +242,11 @@ struct NowPlayingView: View {
                     Text(model.remaining)
                 }
                 .font(.system(size: 10))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(Color.dimWhite(0.5, contrast))
+                // One element with a value, instead of two times and a mute bar.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Playback position")
+                .accessibilityValue("\(model.elapsed) of \(model.totalTime)")
                 .staggerIn(shown, delay: Motion.staggerProgress, reduceMotion: reduceMotion)
             }
 
@@ -242,11 +256,13 @@ struct NowPlayingView: View {
             // toggles live on the collapsed top strip now (the side controls),
             // so the card stays focused on playback.
             HStack(spacing: 26) {
-                IconButton("backward.fill", tint: .white.opacity(0.5)) { model.previousTrack() }
-                IconButton(model.isPlaying ? "pause.fill" : "play.fill", size: 27) {
-                    model.playPause()
-                }
-                IconButton("forward.fill", tint: .white.opacity(0.5)) { model.nextTrack() }
+                IconButton("Previous Track", symbol: "backward.fill", tint: .dimWhite(0.5, contrast),
+                           action: model.previousTrack)
+                IconButton(model.isPlaying ? "Pause" : "Play",
+                           symbol: model.isPlaying ? "pause.fill" : "play.fill", size: 27,
+                           action: model.playPause)
+                IconButton("Next Track", symbol: "forward.fill", tint: .dimWhite(0.5, contrast),
+                           action: model.nextTrack)
             }
             .frame(maxWidth: .infinity)
             .staggerIn(shown, delay: Motion.staggerControls, reduceMotion: reduceMotion)
@@ -265,6 +281,7 @@ struct NowPlayingView: View {
 
 struct NotificationView: View {
     @ObservedObject var model: NotchModel
+    @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -273,9 +290,11 @@ struct NotificationView: View {
                              Color(red: 0.04, green: 0.44, blue: 0.90)],
                     startPoint: .top, endPoint: .bottom))
                 .frame(width: 38, height: 38)
-                .overlay(Image(systemName: "calendar")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.white))
+                .overlay {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.white)
+                }
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(sourceLine)
@@ -292,9 +311,9 @@ struct NotificationView: View {
 
                 HStack(spacing: 8) {
                     Spacer()
-                    ActionButton(title: "เตือนอีกครั้ง")
-                    ActionButton(title: "ปิด")
-                    ActionButton(title: "เปิด", primary: true)
+                    ActionButton(title: "Remind again")
+                    ActionButton(title: "Close")
+                    ActionButton(title: "Open", primary: true)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -303,13 +322,13 @@ struct NotificationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// "ปฏิทิน · เมื่อสักครู่" with the app name brighter than the timestamp.
+    /// "Calendar · Just now" with the app name brighter than the timestamp.
     private var sourceLine: AttributedString {
         var app = AttributedString(model.notifApp)
         app.foregroundColor = .white.opacity(0.9)
         app.font = .system(size: 11.5, weight: .semibold)
         var rest = AttributedString(" · \(model.notifWhen)")
-        rest.foregroundColor = .white.opacity(0.55)
+        rest.foregroundColor = Color.dimWhite(0.55, contrast)
         return app + rest
     }
 }
@@ -372,16 +391,17 @@ enum PickerMetrics {
 struct SnapPickerView: View {
     @ObservedObject var model: NotchModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var shown = false
     private let kinds = LayoutKind.allCases
     var body: some View {
         VStack(spacing: PickerMetrics.captionGap) {
-            Text("วางเพื่อจัดหน้าต่าง")
+            Text("Drop to arrange window")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(Color.dimWhite(0.7, contrast))
                 .frame(height: PickerMetrics.captionH)
             HStack(spacing: PickerMetrics.gap) {
-                ForEach(Array(kinds.enumerated()), id: \.offset) { i, kind in
+                ForEach(kinds.enumerated(), id: \.offset) { i, kind in
                     LayoutTile(kind: kind,
                                activeRegion: model.snapTarget?.tile == i ? model.snapTarget?.region : nil)
                         .frame(width: PickerMetrics.tileW, height: PickerMetrics.tileH)
@@ -398,15 +418,21 @@ struct SnapPickerView: View {
 
 /// A small "aware" pill shown while the window nears the notch but hasn't
 /// reached it yet — a downward chevron hints "keep going to open layouts".
+/// The glyphs flank the camera housing, like the collapsed pill, so the
+/// physical notch never hides them.
 struct ArmedPill: View {
+    var notchWidth: CGFloat
+    @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             Image(systemName: "rectangle.split.2x1")
                 .font(.system(size: 13, weight: .medium))
+            Spacer(minLength: notchWidth)
             Image(systemName: "chevron.compact.down")
                 .font(.system(size: 12, weight: .semibold))
         }
-        .foregroundStyle(.white.opacity(0.85))
+        .padding(.horizontal, 14)
+        .foregroundStyle(Color.dimWhite(0.85, contrast))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -422,6 +448,7 @@ struct LayoutTile: View {
     private let blockHover = Color(red: 0.36, green: 0.55, blue: 0.95)
     private let hoverBlue = Color(red: 0.231, green: 0.510, blue: 0.965)
     private var active: Bool { activeRegion != nil }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
@@ -431,10 +458,12 @@ struct LayoutTile: View {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(active ? Color(red: 0.11, green: 0.14, blue: 0.22)
                                  : Color(red: 0.102, green: 0.102, blue: 0.114))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .strokeBorder(active ? hoverBlue : Color(red: 0.173, green: 0.173, blue: 0.192),
-                                      lineWidth: active ? 2 : 1))
-                ForEach(Array(kind.regions.enumerated()), id: \.offset) { idx, r in
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(active ? hoverBlue : Color(red: 0.173, green: 0.173, blue: 0.192),
+                                          lineWidth: active ? 2 : 1)
+                    }
+                ForEach(kind.regions.enumerated(), id: \.offset) { idx, r in
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(idx == activeRegion ? blockHover.opacity(0.95) : block)
                         .frame(width: max(0, r.width * iw - g), height: max(0, r.height * ih - g))
@@ -443,8 +472,8 @@ struct LayoutTile: View {
             }
         }
         .shadow(color: active ? hoverBlue.opacity(0.45) : .clear, radius: 8, y: 2)
-        .offset(y: active ? -4 : 0)          // lift the hovered tile
-        .animation(.spring(response: 0.28, dampingFraction: 0.7), value: active)
+        .offset(y: active && !reduceMotion ? -4 : 0)   // lift the hovered tile
+        .animation(reduceMotion ? Motion.fadeIn : Motion.tileLift, value: active)
     }
 }
 
@@ -472,6 +501,14 @@ extension AnyTransition {
 }
 
 // MARK: - Building blocks
+
+extension Color {
+    /// White at `opacity` on the always-black island, raised when Increase
+    /// Contrast is on so secondary text and glyphs stay legible.
+    static func dimWhite(_ opacity: Double, _ contrast: ColorSchemeContrast) -> Color {
+        .white.opacity(contrast == .increased ? min(1, opacity + 0.3) : opacity)
+    }
+}
 
 struct Artwork: View {
     var size: CGFloat
@@ -501,12 +538,13 @@ struct Artwork: View {
     }
 }
 
-/// Live audio equalizer bars driven by a timeline so they animate smoothly
-/// while playing and freeze when paused.
+/// Live audio equalizer bars that wave while playing and settle when paused.
+/// Under Reduce Motion the bars hold still at their resting height.
 struct Equalizer: View {
     var active: Bool
     var height: CGFloat = 14
     var color: Color = Color(red: 1.0, green: 0.62, blue: 0.24)   // warm amber
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animating = false
 
     private let heights: [CGFloat] = [6, 14, 10, 18, 9, 16, 12]
@@ -524,8 +562,9 @@ struct Equalizer: View {
             }
         }
         .frame(height: height, alignment: .center)
-        .onAppear { animating = active }
-        .onChange(of: active) { _, playing in animating = playing }
+        .onAppear { animating = active && !reduceMotion }
+        .onChange(of: active) { _, playing in animating = playing && !reduceMotion }
+        .onChange(of: reduceMotion) { _, reduce in animating = active && !reduce }
     }
 
     /// Playing: each bar breathes on a staggered loop (the wave). Stopped: it
@@ -549,15 +588,19 @@ struct PressableStyle: ButtonStyle {
     }
 }
 
-/// Circular transport button with a hover ring and press feedback.
+/// Circular transport button with a hover ring and press feedback. The title
+/// is hidden visually but read by VoiceOver.
 struct IconButton: View {
+    let title: LocalizedStringKey
     let symbol: String
     var size: CGFloat = 15
     var tint: Color = .white
     var action: () -> Void
     @State private var hovering = false
 
-    init(_ symbol: String, size: CGFloat = 15, tint: Color = .white, action: @escaping () -> Void = {}) {
+    init(_ title: LocalizedStringKey, symbol: String, size: CGFloat = 15, tint: Color = .white,
+         action: @escaping () -> Void = {}) {
+        self.title = title
         self.symbol = symbol
         self.size = size
         self.tint = tint
@@ -566,7 +609,8 @@ struct IconButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
+            Label(title, systemImage: symbol)
+                .labelStyle(.iconOnly)
                 .font(.system(size: size))
                 .foregroundStyle(tint)
                 .frame(width: 32, height: 32)
@@ -579,32 +623,8 @@ struct IconButton: View {
     }
 }
 
-struct Chip: View {
-    var tint: Color
-    var symbol: String
-    var filled: Bool = false
-    var action: () -> Void = {}
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(tint.opacity(filled ? (hovering ? 0.24 : 0.16)
-                                          : (hovering ? 0.18 : 0.10)))
-                .frame(width: 28, height: 22)
-                .overlay(
-                    Image(systemName: symbol)
-                        .font(.system(size: 11))
-                        .foregroundStyle(filled ? tint : .white))
-        }
-        .buttonStyle(PressableStyle(pressedScale: 0.9))
-        .onHover { hovering = $0 }
-        .animation(Motion.fadeIn, value: hovering)
-    }
-}
-
 struct ActionButton: View {
-    var title: String
+    var title: LocalizedStringKey
     var primary: Bool = false
     var action: () -> Void = {}
     @State private var hovering = false

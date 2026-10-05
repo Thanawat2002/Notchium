@@ -67,6 +67,13 @@ struct MenuContent: View {
             model.presentNotification()
         }
         Divider()
+        Button(model.isPlaying ? "Pause" : "Play") { model.playPause() }
+            .disabled(!model.hasNowPlaying)
+        Button("Next Track") { model.nextTrack() }
+            .disabled(!model.hasNowPlaying)
+        Button("Previous Track") { model.previousTrack() }
+            .disabled(!model.hasNowPlaying)
+        Divider()
         if Accessibility.isTrusted {
             Text("Window Snapping: On")
         } else {
@@ -76,9 +83,12 @@ struct MenuContent: View {
         Button(model.outputMuted ? "Unmute Speaker" : "Mute Speaker") {
             model.toggleOutputMute()
         }
-        Button(model.micMuted ? "Unmute Microphone  (⌃⌥⌘M)" : "Mute Microphone  (⌃⌥⌘M)") {
+        // Shown in the menu's shortcut column; the global HotKey consumes the
+        // key press system-wide, so this binding never fires a second toggle.
+        Button(model.micMuted ? "Unmute Microphone" : "Mute Microphone") {
             model.toggleMicMute()
         }
+        .keyboardShortcut("m", modifiers: [.command, .option, .control])
         Divider()
         Toggle("Keep Expanded", isOn: $model.pinned)
         Divider()

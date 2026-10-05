@@ -14,7 +14,7 @@ struct Haptics {
     /// never call this on hover-out.
     @MainActor
     static func engage() {
-        let now = Date()
+        let now = Date.now
         guard now.timeIntervalSince(lastFire) >= cooldown else { return }
         lastFire = now
         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
@@ -30,6 +30,8 @@ enum Motion {
     static let snappy   = Animation.spring(response: 0.22, dampingFraction: 0.9)
     static let fadeIn   = Animation.easeOut(duration: 0.18)
     static let fadeOut  = Animation.easeIn(duration: 0.12)
+    /// Hovered snap-layout tile lifting toward the pointer.
+    static let tileLift = Animation.spring(response: 0.28, dampingFraction: 0.7)
     /// Spring for the staggered lift — settles a touch after the 0.18s fade/blur,
     /// so the entry blur reaches 0 before the offset finishes moving.
     static let lift     = Animation.spring(response: 0.34, dampingFraction: 0.82)

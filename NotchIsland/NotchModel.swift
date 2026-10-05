@@ -128,23 +128,25 @@ final class NotchModel: ObservableObject {
         hasNowPlaying = info.hasTrack
         artwork = info.artwork
         sourceIcon = info.hasTrack ? Self.appIcon(for: info.sourceBundleID) : nil
+        sourceAppName = info.hasTrack ? Self.appName(for: info.sourceBundleID) : ""
         // Recompute the accent only when the artwork actually changes.
         if info.artwork !== lastArtworkForColor {
             lastArtworkForColor = info.artwork
             accentColor = info.artwork.flatMap { Self.accent(from: $0) } ?? Self.defaultAccent
         }
         guard info.hasTrack else {
-            trackTitle = "ไม่มีเพลงกำลังเล่น"
-            trackMeta = "เปิดเพลงใน Music หรือ Spotify"
+            trackTitle = Self.nothingPlaying
+            trackMeta = Self.nothingPlayingHint
             isPlaying = false
             progress = 0
             hasProgress = false
             elapsed = "0:00"
             remaining = ""
+            totalTime = ""
             artwork = nil
             return
         }
-        trackTitle = info.title.isEmpty ? "กำลังเล่น" : info.title
+        trackTitle = info.title.isEmpty ? String(localized: "Now playing") : info.title
         trackMeta = [info.artist, info.album].filter { !$0.isEmpty }.joined(separator: " — ")
         isPlaying = info.isPlaying
         let duration = info.duration
@@ -153,6 +155,7 @@ final class NotchModel: ObservableObject {
         progress = duration > 0 ? CGFloat(max(0, min(1, position / duration))) : 0
         elapsed = Self.timeString(position)
         remaining = duration > 0 ? "−" + Self.timeString(max(0, duration - position)) : ""
+        totalTime = duration > 0 ? Self.timeString(duration) : ""
     }
 
     /// Real app icon for a bundle id (Music, Spotify, Chrome…), cached so we
@@ -168,17 +171,20 @@ final class NotchModel: ObservableObject {
         return icon
     }
 
+    /// Display name of the source app, for VoiceOver ("Playing in Spotify").
+    private static func appName(for bundleID: String) -> String {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .first?.localizedName ?? ""
+    }
+
     private static func timeString(_ seconds: Double) -> String {
-        let t = max(0, Int(seconds.rounded()))
-        return String(format: "%d:%02d", t / 60, t % 60)
+        Duration.seconds(max(0, Int(seconds.rounded()))).formatted(.time(pattern: .minuteSecond))
     }
 
     /// Pull a vivid accent color from an image: downsample, then pick the most
     /// saturated/bright pixel (ignoring near-black/white), and punch it up a bit.
     private static func accent(from image: NSImage) -> Color? {
-        guard let tiff = image.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let cg = rep.cgImage else { return nil }
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
 
         let n = 12
         var data = [UInt8](repeating: 0, count: n * n * 4)
@@ -208,6 +214,9 @@ final class NotchModel: ObservableObject {
     func presentNotification(for seconds: Double = 4) {
         expandedKind = .notification
         alertActive = true
+        // The banner is visual and times out, so tell VoiceOver users too.
+        let announcement = "\(notifApp): \(notifLine1)"
+        AccessibilityNotification.Announcement(announcement).post()
         dismissTask?.cancel()
         dismissTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(seconds))
@@ -276,10 +285,12 @@ final class NotchModel: ObservableObject {
     // MARK: Now Playing (live)
 
     @Published var hasNowPlaying = false
-    @Published var trackTitle = "ไม่มีเพลงกำลังเล่น"
-    @Published var trackMeta  = "เปิดเพลงใน Music หรือ Spotify"
+    @Published var trackTitle = NotchModel.nothingPlaying
+    @Published var trackMeta  = NotchModel.nothingPlayingHint
     @Published var elapsed    = "0:00"
     @Published var remaining  = ""
+    /// Track length ("3:36"), for VoiceOver's playback-position value.
+    @Published var totalTime  = ""
     @Published var progress: CGFloat = 0
     /// True only when the source reports a real duration (so the bar can move).
     @Published var hasProgress = false
@@ -287,14 +298,18 @@ final class NotchModel: ObservableObject {
     /// Icon of the app the track plays from (Music/Spotify/Chrome…), for a
     /// small source badge on the artwork. Nil when nothing is playing.
     @Published var sourceIcon: NSImage?
+    /// Name of that app, read by VoiceOver on the badge.
+    @Published var sourceAppName = ""
     /// Accent color pulled from the artwork (falls back to warm amber).
     @Published var accentColor = NotchModel.defaultAccent
     static let defaultAccent = Color(red: 1.0, green: 0.62, blue: 0.24)
     private var lastArtworkForColor: NSImage?
+    private static let nothingPlaying = String(localized: "Nothing playing")
+    private static let nothingPlayingHint = String(localized: "Play something in Music or Spotify")
 
     // MARK: Notification (sample — Phase 3)
-    let notifApp   = "ปฏิทิน"
-    let notifWhen  = "เมื่อสักครู่"
-    let notifLine1 = "ประชุมออกแบบรายสัปดาห์ เริ่มในอีก 10 นาที"
-    let notifLine2 = "ห้อง Studio B · กับ Nan, Pete และอีก 4 คน"
+    let notifApp   = String(localized: "Calendar")
+    let notifWhen  = String(localized: "Just now")
+    let notifLine1 = String(localized: "Weekly design review starts in 10 minutes")
+    let notifLine2 = String(localized: "Studio B · with Nan, Pete and 4 others")
 }
