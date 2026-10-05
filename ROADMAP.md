@@ -92,6 +92,17 @@
 - **จัดการอายุไฟล์** — temp items เคลียร์เมื่อปิดแอป หรือตั้งเวลา, กันเต็มดิสก์
 - ⚠️ ข้อควรระวัง: sandbox ปิดอยู่แล้ว (เข้าถึงไฟล์ได้), แต่ต้องจัดการ security-scoped ถ้าเปิด sandbox ภายหลัง; ลากออกจาก non-activating panel ต้องทดสอบว่า drag session เริ่มได้
 
+## ✅ Phase 10 — Claude Code status 🦀 (เสร็จ — v1)
+- ✅ รับสถานะจาก **Claude Code hooks** → `curl` POST ไป listener `127.0.0.1:47821` (loopback เท่านั้น) — `ClaudeActivity.swift`
+  - เมนู "แสดงสถานะ Claude Code…" ติดตั้ง hooks ลง `~/.claude/settings.json` (merge + backup, แทนที่ hook รุ่นเก่า)
+  - UserPromptSubmit/PreToolUse → ทำงาน · Notification → รอ permission (เด้งการ์ด 4s) · Stop → เสร็จ ✓ · SessionEnd → ลบ
+- ✅ แบบเล็ก: ปู pixel กระโดด + เวลา/จำนวน session; มีเพลง → ปูแทน equalizer
+- ✅ แบบใหญ่: แถวละ session (สูงสุด 3), สลับการ์ดเพลง/Claude ที่แถบข้าง notch
+- ✅ กดแถว → สลับไปแอปที่ session รัน (ไล่ process tree จาก `$PPID`), Terminal/iTerm เลือก tab ตาม tty
+- ✅ ไม่มีเพลง/ไม่มี session → ชี้กลาง notch ขยายแค่ side controls
+- ⏳ กด Esc หยุดกลางคันไม่มี `Stop` → ค้างสถานะทำงานจนกว่า prompt ถัดไป/30 นาที · tmux หา host ไม่เจอ
+- ⏳ v2: Allow/Deny permission จาก notch (`PermissionRequest` hook)
+
 ---
 
 ## จุดปรับแต่งที่ใช้บ่อย

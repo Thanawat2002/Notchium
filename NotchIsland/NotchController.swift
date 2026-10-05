@@ -192,6 +192,8 @@ final class NotchController {
     /// horizontal position: the **center** column (over the notch) opens the
     /// full card, the **flanks** on either side open the side controls.
     ///   • collapsed / sideControls — center → card, flanks → side controls.
+    ///     With nothing to show in the card (no music, no Claude session) the
+    ///     center opens the side controls too, instead of an empty card.
     ///   • expanded — sticky across the whole card footprint, so reaching for a
     ///     control never collapses it.
     private func desiredZone(at p: NSPoint, on screen: NSScreen) -> HoverZone {
@@ -201,7 +203,8 @@ final class NotchController {
             return shape.contains(p) ? .drop : .none
         case .collapsed, .sideControls:
             guard shape.contains(p) else { return .none }
-            return centerZone(on: screen).contains(p) ? .drop : .strip
+            let center = model.hasCardContent && centerZone(on: screen).contains(p)
+            return center ? .drop : .strip
         }
     }
 

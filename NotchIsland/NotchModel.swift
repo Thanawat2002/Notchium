@@ -6,6 +6,14 @@ import AppKit
 enum ExpandedKind: CaseIterable {
     case nowPlaying
     case notification
+    case claude
+}
+
+/// What the collapsed pill shows for Claude Code, at a glance.
+enum ClaudeGlance: Equatable {
+    case working(since: Date, count: Int)   // count > 1 → several sessions busy
+    case waiting                            // a session needs the user
+    case done                               // just finished (brief)
 }
 
 /// What the island is currently showing.
@@ -49,7 +57,12 @@ struct SnapTarget: Equatable {
 @MainActor
 final class NotchModel: ObservableObject {
     /// Where the pointer sits relative to the notch (set by the controller).
-    @Published var hoverZone: HoverZone = .none
+    @Published var hoverZone: HoverZone = .none {
+        didSet {
+            // Opening the card by hover: show what matters most right now.
+            if hoverZone == .drop, oldValue != .drop, !alertActive { expandedKind = preferredCardKind }
+        }
+    }
     /// Snap-layouts drag state (set by the window-drag monitor). Takes over the
     /// island's content while a window is being dragged toward the notch.
     @Published var snapPhase: SnapPhase = .off
@@ -93,6 +106,8 @@ final class NotchModel: ObservableObject {
     private var dismissTask: Task<Void, Never>?
     private let audio = SystemAudio()
     private let nowPlaying = NowPlayingProvider()
+    private let claude = ClaudeActivity()
+    private var finishedTask: Task<Void, Never>?
 
     init() {
         audio.onChange = { [weak self] in
@@ -105,6 +120,13 @@ final class NotchModel: ObservableObject {
             MainActor.assumeIsolated { self?.applyNowPlaying(info) }
         }
         nowPlaying.start()
+
+        claude.onChange = { [weak self] in self?.claudeSessions = $0 }
+        claude.onNeedsAttention = { [weak self] session in
+            self?.presentAlert(.claude, announcing: "\(session.project): \(session.detail)")
+        }
+        claude.onFinished = { [weak self] _ in self?.flashClaudeDone() }
+        claude.start()
     }
 
     private func refreshAudio() {
@@ -212,10 +234,15 @@ final class NotchModel: ObservableObject {
     /// Pop the notification in and let it auto-dismiss after a few seconds
     /// (unless the pointer is over it, which keeps it open via the hover zone).
     func presentNotification(for seconds: Double = 4) {
-        expandedKind = .notification
+        presentAlert(.notification, announcing: "\(notifApp): \(notifLine1)", for: seconds)
+    }
+
+    /// Pop a card open on its own, then auto-dismiss it.
+    private func presentAlert(_ kind: ExpandedKind, announcing announcement: String,
+                              for seconds: Double = 4) {
+        expandedKind = kind
         alertActive = true
         // The banner is visual and times out, so tell VoiceOver users too.
-        let announcement = "\(notifApp): \(notifLine1)"
         AccessibilityNotification.Announcement(announcement).post()
         dismissTask?.cancel()
         dismissTask = Task { [weak self] in
@@ -247,7 +274,10 @@ final class NotchModel: ObservableObject {
         let base = notchWidth > 0 ? notchWidth + sideModule * 2 : 200
         // Extra room to append a mute icon on the trailing side (symmetric, so
         // the pill stays centered on the notch). slash glyphs are wide.
-        let extra: CGFloat = (micMuted ? 28 : 0) + (outputMuted ? 28 : 0)
+        var extra: CGFloat = (micMuted ? 28 : 0) + (outputMuted ? 28 : 0)
+        // Room for the Claude status: the crab beside the artwork, or the
+        // elapsed timer when Claude has the pill to itself.
+        if claudeGlance != nil { extra += hasNowPlaying ? 12 : 24 }
         let h = notchHeight > 0 ? notchHeight : 32
         return CGSize(width: base + extra, height: h)
     }
@@ -306,6 +336,47 @@ final class NotchModel: ObservableObject {
     private var lastArtworkForColor: NSImage?
     private static let nothingPlaying = String(localized: "Nothing playing")
     private static let nothingPlayingHint = String(localized: "Play something in Music or Spotify")
+
+    // MARK: Claude Code (live, via hooks)
+
+    @Published var claudeSessions: [ClaudeSession] = []
+    /// A session finished moments ago — the pill flashes a check.
+    @Published var claudeJustFinished = false
+
+    var claudeGlance: ClaudeGlance? {
+        if claudeSessions.contains(where: { $0.state == .waiting }) { return .waiting }
+        let working = claudeSessions.filter { $0.state == .working }
+        if let since = working.map(\.startedAt).min() {
+            return .working(since: since, count: working.count)
+        }
+        return claudeJustFinished ? .done : nil
+    }
+
+    /// There's something worth opening the big card for. Without it, hovering
+    /// the notch only grows the side controls.
+    var hasCardContent: Bool { hasNowPlaying || !claudeSessions.isEmpty }
+
+    /// Cards the user can flip between while expanded (shown as tabs when > 1).
+    var cardPages: [ExpandedKind] {
+        (hasNowPlaying ? [.nowPlaying] : []) + (claudeSessions.isEmpty ? [] : [.claude])
+    }
+
+    /// Card to open on hover: a session that needs you, then music, then Claude.
+    private var preferredCardKind: ExpandedKind {
+        if claudeGlance == .waiting { return .claude }
+        if hasNowPlaying { return .nowPlaying }
+        return claudeSessions.isEmpty ? .nowPlaying : .claude
+    }
+
+    private func flashClaudeDone() {
+        claudeJustFinished = true
+        finishedTask?.cancel()
+        finishedTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            self?.claudeJustFinished = false
+        }
+    }
 
     // MARK: Notification (sample — Phase 3)
     let notifApp   = String(localized: "Calendar")

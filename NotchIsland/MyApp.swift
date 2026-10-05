@@ -66,6 +66,11 @@ struct MenuContent: View {
         Button("Show Notification") {
             model.presentNotification()
         }
+        Button("Claude Sessions") {
+            model.expandedKind = .claude
+            model.pinned = true
+        }
+        .disabled(model.claudeSessions.isEmpty)
         Divider()
         Button(model.isPlaying ? "Pause" : "Play") { model.playPause() }
             .disabled(!model.hasNowPlaying)
@@ -78,6 +83,11 @@ struct MenuContent: View {
             Text("Window Snapping: On")
         } else {
             Button("Enable Window Snapping…", action: onEnableSnap)
+        }
+        if ClaudeHooks.isInstalled() {
+            Text("Claude Code Status: On")
+        } else {
+            Button("Show Claude Code Status…", action: installClaudeHooks)
         }
         Divider()
         Button(model.outputMuted ? "Unmute Speaker" : "Mute Speaker") {
@@ -94,5 +104,18 @@ struct MenuContent: View {
         Divider()
         Button("Quit Notch Island") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")
+    }
+
+    /// Adds the status hooks to ~/.claude/settings.json (takes effect for new
+    /// Claude Code sessions).
+    private func installClaudeHooks() {
+        do {
+            try ClaudeHooks.install()
+        } catch {
+            let alert = NSAlert(error: error)
+            alert.messageText = String(localized: "Couldn't update Claude Code settings")
+            alert.informativeText = String(localized: "Check that ~/.claude/settings.json is valid JSON, then try again.")
+            alert.runModal()
+        }
     }
 }

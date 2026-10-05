@@ -59,6 +59,11 @@ enum Motion {
     static let staggerText     = 0.16
     static let staggerProgress = 0.20
     static let staggerControls = 0.24
+    /// Extra delay per row in a list card (Claude sessions).
+    static let staggerRow = 0.05
+
+    /// Seconds per hop of the working Claude crab.
+    static let crabHop: Double = 0.42
 }
 
 /// Fades + lifts an element in on a delay (the staggered reveal). Leaving is

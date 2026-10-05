@@ -34,6 +34,16 @@ struct NotchRootView: View {
                     .frame(width: nw, height: contentH)
                     .padding(.top, inset)
             }
+            .overlay(alignment: .topTrailing) {
+                // Flip between cards from the empty strip beside the notch.
+                if showsCardTabs {
+                    CardTabs(model: model)
+                        .frame(height: inset)
+                        .padding(.trailing, 18)
+                        .transition(.opacity)
+                }
+            }
+            .animation(Motion.fadeIn, value: showsCardTabs)
             .frame(width: nw, height: nh)
             // Pin is toggled from the menu bar only — clicking the notch used to
             // pin it by accident (a missed button tap kept it stuck open).
@@ -51,7 +61,12 @@ struct NotchRootView: View {
         // Show for any non-collapsed state (incl. side controls on hover), a snap
         // drag, live music, or an active mute indicator. Hidden only when truly idle.
         model.snapActive || model.presentation != .collapsed || model.hasNowPlaying
-            || model.micMuted || model.outputMuted
+            || model.micMuted || model.outputMuted || model.claudeGlance != nil
+    }
+
+    private var showsCardTabs: Bool {
+        !model.snapActive && model.presentation == .expanded && model.topInset > 0
+            && model.cardPages.count > 1 && model.cardPages.contains(model.expandedKind)
     }
 
     /// Interpolate the bottom corner radius (12 collapsed → 26 expanded) from
@@ -79,6 +94,7 @@ struct NotchRootView: View {
                     switch model.expandedKind {
                     case .nowPlaying:   NowPlayingView(model: model).transition(.opacity)
                     case .notification: NotificationView(model: model).transition(notificationTransition)
+                    case .claude:       ClaudeCardView(model: model).transition(.opacity)
                     }
                 case .collapsed, .sideControls:
                     // The pill and its side-controls variant share one layout so
@@ -128,10 +144,14 @@ struct CollapsedView: View {
             // Blank block mirroring the trailing controls, so the notch gap
             // stays centered on the physical notch as the pill grows sideways.
             if showControls { Color.clear.frame(width: model.controlsBlock) }
-            // Artwork only when something is actually playing.
+            // Artwork only when something is actually playing; otherwise the
+            // Claude crab takes the leading slot while a session is active.
             if model.hasNowPlaying {
                 Artwork(size: art, corner: art * 0.28, showGlyph: false, image: model.artwork)
                     .accessibilityHidden(true)
+            } else if let glance = model.claudeGlance {
+                ClaudeCrab(size: h * 0.62, color: glance.tint, hopping: glance.isWorking)
+                    .accessibilityLabel(glance.accessibilityLabel)
             }
             // Keep a gap the width of the notch so the two items stay outside it.
             Spacer(minLength: model.notchWidth)
@@ -144,7 +164,15 @@ struct CollapsedView: View {
     /// indicators (collapsed) or tappable mic/speaker toggles (side controls).
     @ViewBuilder private func rightSlot(h: CGFloat) -> some View {
         HStack(spacing: 4) {
-            if model.hasNowPlaying {
+            if let glance = model.claudeGlance {
+                if model.hasNowPlaying {
+                    // Music + Claude: the crab stands in for the equalizer.
+                    ClaudeCrab(size: h * 0.62, color: glance.tint, hopping: glance.isWorking)
+                        .accessibilityLabel(glance.accessibilityLabel)
+                } else {
+                    ClaudeGlanceAccessory(glance: glance, height: h)
+                }
+            } else if model.hasNowPlaying {
                 Equalizer(active: model.isPlaying, height: max(11, h * 0.34), color: model.accentColor)
                     .accessibilityHidden(true)
             }
@@ -330,6 +358,240 @@ struct NotificationView: View {
         var rest = AttributedString(" · \(model.notifWhen)")
         rest.foregroundColor = Color.dimWhite(0.55, contrast)
         return app + rest
+    }
+}
+
+// MARK: - Claude Code
+
+enum ClaudeTint {
+    static let clay  = Color(red: 0.851, green: 0.467, blue: 0.341)   // #D97757
+    static let amber = Color(red: 0.937, green: 0.624, blue: 0.153)   // #EF9F27
+    static let green = Color(red: 0.365, green: 0.792, blue: 0.647)   // #5DCAA5
+}
+
+extension ClaudeSession.State {
+    var tint: Color {
+        switch self {
+        case .working: ClaudeTint.clay
+        case .waiting: ClaudeTint.amber
+        case .done:    ClaudeTint.green
+        }
+    }
+}
+
+extension ClaudeGlance {
+    var tint: Color {
+        switch self {
+        case .working: ClaudeTint.clay
+        case .waiting: ClaudeTint.amber
+        case .done:    ClaudeTint.green
+        }
+    }
+    var isWorking: Bool { if case .working = self { true } else { false } }
+    var accessibilityLabel: Text {
+        switch self {
+        case .working: Text("Claude is working")
+        case .waiting: Text("Claude needs your attention")
+        case .done:    Text("Claude finished")
+        }
+    }
+}
+
+/// Claude Code's pixel crab (12 × 8 cells). Hops while a session is working,
+/// alternating which legs are tucked like a little walk cycle, and squashes a
+/// touch on landing. Holds still under Reduce Motion.
+struct ClaudeCrab: View {
+    /// Width in points; height follows the 12:8 grid.
+    var size: CGFloat
+    var color: Color
+    var hopping = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Rows top → bottom: body, eyes (holes), arms ×2, body ×2, legs ×2.
+    private static let rows: [[ClosedRange<Int>]] = [
+        [2...9],
+        [2...2, 4...7, 9...9],
+        [0...11],
+        [0...11],
+        [2...9],
+        [2...9],
+        [2...2, 4...4, 7...7, 9...9],
+        [2...2, 4...4, 7...7, 9...9],
+    ]
+
+    var body: some View {
+        let animate = hopping && !reduceMotion
+        let cell = size / 12
+        TimelineView(.animation(paused: !animate)) { ctx in
+            let t = animate ? ctx.date.timeIntervalSinceReferenceDate / Motion.crabHop : 0
+            let height = abs(sin(t * .pi))              // 0 on the ground, 1 at the top
+            let squash = animate ? (1 - height) * 0.1 : 0
+            let stride = Int(t.rounded(.down)) % 2      // which leg pair is tucked
+            Canvas { gc, _ in
+                var path = Path()
+                for (r, runs) in Self.rows.enumerated() {
+                    for run in runs {
+                        // On the last row, tuck every other leg while hopping.
+                        if animate, r == 7, (run.lowerBound == 2 || run.lowerBound == 7) == (stride == 0) {
+                            continue
+                        }
+                        path.addRect(CGRect(x: CGFloat(run.lowerBound) * cell, y: CGFloat(r) * cell,
+                                            width: CGFloat(run.count) * cell, height: cell))
+                    }
+                }
+                gc.fill(path, with: .color(color))
+            }
+            .frame(width: size, height: cell * 8)
+            .scaleEffect(x: 1 + squash, y: 1 - squash, anchor: .bottom)
+            .offset(y: -height * cell * 2.5)
+        }
+        .frame(width: size, height: cell * 8)
+        .animation(Motion.fadeIn, value: color)
+    }
+}
+
+/// Trailing detail in the pill when Claude has it to itself: the elapsed time
+/// (or how many sessions are busy), a dot when it needs you, a check when done.
+struct ClaudeGlanceAccessory: View {
+    let glance: ClaudeGlance
+    let height: CGFloat
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        Group {
+            switch glance {
+            case .working(let since, let count):
+                Group {
+                    if count > 1 { Text(count, format: .number) } else { Text(since, style: .timer) }
+                }
+                .font(.system(size: height * 0.36, weight: .medium).monospacedDigit())
+                .foregroundStyle(Color.dimWhite(0.75, contrast))
+                .fixedSize()
+            case .waiting:
+                Circle().fill(ClaudeTint.amber).frame(width: 7, height: 7)
+            case .done:
+                Image(systemName: "checkmark")
+                    .font(.system(size: height * 0.34, weight: .bold))
+                    .foregroundStyle(ClaudeTint.green)
+            }
+        }
+        .accessibilityHidden(true)   // the crab carries the label
+    }
+}
+
+/// The expanded Claude card: one row per session, most urgent first.
+struct ClaudeCardView: View {
+    @ObservedObject var model: NotchModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
+    private let maxRows = 3
+    var body: some View {
+        let rows = Array(model.claudeSessions.prefix(maxRows))
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(rows.enumerated(), id: \.element.id) { i, session in
+                if i > 0 { Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5).padding(.horizontal, 8) }
+                ClaudeSessionRow(session: session)
+                    .staggerIn(shown, delay: Motion.staggerArtwork + Double(i) * Motion.staggerRow,
+                               reduceMotion: reduceMotion)
+            }
+            let more = model.claudeSessions.count - rows.count
+            if more > 0 {
+                Text("+\(more) more")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.top, 2)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { shown = true }
+        .onDisappear { shown = false }
+    }
+}
+
+struct ClaudeSessionRow: View {
+    let session: ClaudeSession
+    @Environment(\.colorSchemeContrast) private var contrast
+    @State private var hovering = false
+    var body: some View {
+        Button { session.host?.focus() } label: { content }
+            .buttonStyle(PressableStyle(pressedScale: 0.98))
+            .disabled(session.host == nil)
+            .onHover { hovering = $0 && session.host != nil }
+            .animation(Motion.fadeIn, value: hovering)
+            .accessibilityHint(session.host == nil ? Text("") : Text("Switches to its window"))
+    }
+
+    private var content: some View {
+        HStack(spacing: 12) {
+            ClaudeCrab(size: 18, color: session.state.tint, hopping: session.state == .working)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.project.isEmpty ? String(localized: "Claude Code") : session.project)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(session.detail)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(session.state == .waiting ? ClaudeTint.amber
+                                                               : Color.dimWhite(0.55, contrast))
+                    .truncationMode(.middle)
+            }
+            .lineLimit(1)
+            Spacer(minLength: 8)
+            switch session.state {
+            case .working:
+                Text(session.startedAt, style: .timer)
+                    .font(.system(size: 11.5).monospacedDigit())
+                    .foregroundStyle(Color.dimWhite(0.55, contrast))
+            case .waiting:
+                Text("Needs you")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(ClaudeTint.amber)
+            case .done:
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(ClaudeTint.green)
+                    .accessibilityLabel("Done")
+            }
+        }
+        .frame(height: 40)
+        .padding(.horizontal, 8)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(.white.opacity(hovering ? 0.08 : 0)))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Small tabs in the top strip to flip between the music and Claude cards.
+struct CardTabs: View {
+    @ObservedObject var model: NotchModel
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(model.cardPages, id: \.self) { kind in
+                let selected = model.expandedKind == kind
+                let color = selected ? Color.white : Color.dimWhite(0.4, contrast)
+                Button { model.expandedKind = kind } label: {
+                    Group {
+                        if kind == .claude {
+                            ClaudeCrab(size: 13, color: selected ? ClaudeTint.clay : color)
+                        } else {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(color)
+                        }
+                    }
+                    .frame(width: 24, height: 20)
+                    .background(Capsule().fill(.white.opacity(selected ? 0.14 : 0)))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel(kind == .claude ? Text("Claude") : Text("Now Playing"))
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .animation(Motion.snappy, value: model.expandedKind)
     }
 }
 
