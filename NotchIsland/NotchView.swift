@@ -58,8 +58,8 @@ struct NotchRootView: View {
     }
 
     private var notchVisible: Bool {
-        // Show for any non-collapsed state (incl. side controls on hover), a snap
-        // drag, live music, or an active mute indicator. Hidden only when truly idle.
+        // Show when expanded, during a snap drag, with live music or Claude
+        // activity, or an active mute indicator. Hidden only when truly idle.
         model.snapActive || model.presentation != .collapsed || model.hasNowPlaying
             || model.micMuted || model.outputMuted || model.claudeGlance != nil
     }
@@ -96,12 +96,10 @@ struct NotchRootView: View {
                     case .notification: NotificationView(model: model).transition(notificationTransition)
                     case .claude:       ClaudeCardView(model: model).transition(.opacity)
                     }
-                case .collapsed, .sideControls:
-                    // The pill and its side-controls variant share one layout so
-                    // artwork/equalizer stay put while the mute buttons slide in.
+                case .collapsed:
                     // Appears nicely when collapsing; vanishes instantly when the
                     // big card opens so there's no blurry flash of the small pill.
-                    CollapsedView(model: model, showControls: model.presentation == .sideControls)
+                    CollapsedView(model: model)
                         .transition(.asymmetric(insertion: morphTransition, removal: .identity))
                 }
             }
@@ -133,17 +131,11 @@ struct NotchRootView: View {
 
 struct CollapsedView: View {
     @ObservedObject var model: NotchModel
-    /// When true (the `.sideControls` state) the trailing slot shows tappable
-    /// mic/speaker toggles instead of passive mute indicators.
-    var showControls = false
     private let mutedRed = Color(red: 1, green: 0.27, blue: 0.23)
     var body: some View {
         let h = model.collapsedSize.height
         let art = max(20, h - 10)               // fill the notch height, small inset
         HStack(spacing: 0) {
-            // Blank block mirroring the trailing controls, so the notch gap
-            // stays centered on the physical notch as the pill grows sideways.
-            if showControls { Color.clear.frame(width: model.controlsBlock) }
             // Artwork only when something is actually playing; otherwise the
             // Claude crab takes the leading slot while a session is active.
             if model.hasNowPlaying {
@@ -160,8 +152,8 @@ struct CollapsedView: View {
         .padding(.horizontal, 14)
     }
 
-    /// The equalizer (only while playing), followed by either passive mute
-    /// indicators (collapsed) or tappable mic/speaker toggles (side controls).
+    /// The equalizer (only while playing) or Claude status, followed by mute
+    /// indicators. Muting itself lives in the menu and ⌃⌥⌘M.
     @ViewBuilder private func rightSlot(h: CGFloat) -> some View {
         HStack(spacing: 4) {
             if let glance = model.claudeGlance {
@@ -176,32 +168,17 @@ struct CollapsedView: View {
                 Equalizer(active: model.isPlaying, height: max(11, h * 0.34), color: model.accentColor)
                     .accessibilityHidden(true)
             }
-            if showControls {
-                IconButton(model.micMuted ? "Unmute Microphone" : "Mute Microphone",
-                           symbol: model.micMuted ? "mic.slash.fill" : "mic.fill",
-                           size: h * 0.42,
-                           tint: model.micMuted ? mutedRed : .white) {
-                    model.toggleMicMute()
-                }
-                IconButton(model.outputMuted ? "Unmute Speaker" : "Mute Speaker",
-                           symbol: model.outputMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                           size: h * 0.42,
-                           tint: model.outputMuted ? mutedRed : .white) {
-                    model.toggleOutputMute()
-                }
-            } else {
-                if model.micMuted {
-                    Image(systemName: "mic.slash.fill")
-                        .font(.system(size: h * 0.3))
-                        .foregroundStyle(mutedRed)
-                        .accessibilityLabel("Microphone muted")
-                }
-                if model.outputMuted {
-                    Image(systemName: "speaker.slash.fill")
-                        .font(.system(size: h * 0.3))
-                        .foregroundStyle(mutedRed)
-                        .accessibilityLabel("Speaker muted")
-                }
+            if model.micMuted {
+                Image(systemName: "mic.slash.fill")
+                    .font(.system(size: h * 0.3))
+                    .foregroundStyle(mutedRed)
+                    .accessibilityLabel("Microphone muted")
+            }
+            if model.outputMuted {
+                Image(systemName: "speaker.slash.fill")
+                    .font(.system(size: h * 0.3))
+                    .foregroundStyle(mutedRed)
+                    .accessibilityLabel("Speaker muted")
             }
         }
     }
@@ -280,9 +257,7 @@ struct NowPlayingView: View {
 
             Spacer(minLength: 12)
 
-            // Bottom: transport centered across the whole card. Mic/speaker
-            // toggles live on the collapsed top strip now (the side controls),
-            // so the card stays focused on playback.
+            // Bottom: transport centered across the whole card.
             HStack(spacing: 26) {
                 IconButton("Previous Track", symbol: "backward.fill", tint: .dimWhite(0.5, contrast),
                            action: model.previousTrack)
