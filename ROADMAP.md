@@ -5,7 +5,7 @@
 
 โครงโค้ดปัจจุบัน:
 - `NotchIsland/NotchModel.swift` — state + ข้อมูลตัวอย่าง + ขนาด (notch-aware)
-- `NotchIsland/NotchView.swift` — SwiftUI ทุก state (collapsed / side controls / now playing / notification / snap picker)
+- `NotchIsland/NotchView.swift` — SwiftUI ทุก state (collapsed / now playing / notification / Claude / snap picker)
 - `NotchIsland/NotchController.swift` — NSPanel ลอย, จัดตำแหน่ง/ย่อขยาย, ตรวจ hover, ตามจอ
 - `NotchIsland/NowPlayingProvider.swift` · `SystemAudio.swift` · `HotKey.swift` · `Motion.swift`
 - `NotchIsland/WindowSnap.swift` — ตรวจจับลากหน้าต่าง + snap layouts (AX)
@@ -99,7 +99,8 @@
 - ✅ แบบเล็ก: ปู pixel กระโดด + เวลา/จำนวน session; มีเพลง → ปูแทน equalizer
 - ✅ แบบใหญ่: แถวละ session (สูงสุด 3), สลับการ์ดเพลง/Claude ที่แถบข้าง notch
 - ✅ กดแถว → สลับไปแอปที่ session รัน (ไล่ process tree จาก `$PPID`), Terminal/iTerm เลือก tab ตาม tty
-- ✅ ไม่มีเพลง/ไม่มี session → ชี้กลาง notch ขยายแค่ side controls
+- ✅ ไม่มีเพลง/ไม่มี session → ชี้ notch แล้วไม่กางอะไร
+- ✅ เอาปุ่ม mic/speaker บน notch ออก (เหลือไอคอนแดงตอน mute) — สลับ mute ผ่านเมนู / ⌃⌥⌘M · ชี้ตรงไหนของ pill ก็เปิดการ์ด
 - ⏳ กด Esc หยุดกลางคันไม่มี `Stop` → ค้างสถานะทำงานจนกว่า prompt ถัดไป/30 นาที · tmux หา host ไม่เจอ
 - ✅ v2: Allow / Deny permission จาก notch — hook `PermissionRequest` ค้าง connection รอคำตอบ (สูงสุด 110s แล้วคืนให้ terminal)
   - terminal ของ session อยู่หน้าสุด → ปล่อยผ่านให้ terminal ถามเองทันที
