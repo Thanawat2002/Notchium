@@ -368,6 +368,21 @@ final class NotchModel: ObservableObject {
         return claudeSessions.isEmpty ? .nowPlaying : .claude
     }
 
+    /// Allow / Deny a permission prompt held on the notch.
+    func answerClaude(_ session: ClaudeSession, allow: Bool) {
+        claude.answer(sessionID: session.id, allow: allow)
+        // Answered — let a popped-open card fold away (hover still holds it).
+        dismissTask?.cancel()
+        alertActive = false
+    }
+
+    /// Switch to the session's terminal. A held prompt is handed back first,
+    /// so it's actually showing there when you arrive.
+    func openClaudeSession(_ session: ClaudeSession) {
+        if session.request != nil { claude.answer(sessionID: session.id, allow: nil) }
+        session.host?.focus()
+    }
+
     private func flashClaudeDone() {
         claudeJustFinished = true
         finishedTask?.cancel()

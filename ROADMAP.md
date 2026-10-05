@@ -101,7 +101,10 @@
 - ✅ กดแถว → สลับไปแอปที่ session รัน (ไล่ process tree จาก `$PPID`), Terminal/iTerm เลือก tab ตาม tty
 - ✅ ไม่มีเพลง/ไม่มี session → ชี้กลาง notch ขยายแค่ side controls
 - ⏳ กด Esc หยุดกลางคันไม่มี `Stop` → ค้างสถานะทำงานจนกว่า prompt ถัดไป/30 นาที · tmux หา host ไม่เจอ
-- ⏳ v2: Allow/Deny permission จาก notch (`PermissionRequest` hook)
+- ✅ v2: Allow / Deny permission จาก notch — hook `PermissionRequest` ค้าง connection รอคำตอบ (สูงสุด 110s แล้วคืนให้ terminal)
+  - terminal ของ session อยู่หน้าสุด → ปล่อยผ่านให้ terminal ถามเองทันที
+  - ปุ่มกดได้หลังโผล่ 0.6s (`Motion.decisionArmDelay`) กันกดพลาด · กดแถว = คืนให้ terminal แล้วสลับไป
+  - ⏳ ยังไม่มี "Always allow" (ต้องเขียนกฎ permission ถาวร)
 
 ---
 

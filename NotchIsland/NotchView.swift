@@ -489,7 +489,9 @@ struct ClaudeCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(rows.enumerated(), id: \.element.id) { i, session in
                 if i > 0 { Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5).padding(.horizontal, 8) }
-                ClaudeSessionRow(session: session)
+                ClaudeSessionRow(session: session,
+                                 onOpen: { model.openClaudeSession(session) },
+                                 onAnswer: { model.answerClaude(session, allow: $0) })
                     .staggerIn(shown, delay: Motion.staggerArtwork + Double(i) * Motion.staggerRow,
                                reduceMotion: reduceMotion)
             }
@@ -509,17 +511,44 @@ struct ClaudeCardView: View {
     }
 }
 
+/// One session. Tapping it switches to its terminal; a held permission prompt
+/// adds Deny / Allow, which only arm a beat after they appear so a pointer
+/// already resting where the card drops can't approve anything by accident.
 struct ClaudeSessionRow: View {
     let session: ClaudeSession
+    var onOpen: () -> Void = {}
+    var onAnswer: (Bool) -> Void = { _ in }
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovering = false
+    @State private var armed = false
     var body: some View {
-        Button { session.host?.focus() } label: { content }
-            .buttonStyle(PressableStyle(pressedScale: 0.98))
-            .disabled(session.host == nil)
-            .onHover { hovering = $0 && session.host != nil }
-            .animation(Motion.fadeIn, value: hovering)
-            .accessibilityHint(session.host == nil ? Text("") : Text("Switches to its window"))
+        HStack(spacing: 10) {
+            Button(action: onOpen) { content }
+                .buttonStyle(PressableStyle(pressedScale: 0.98))
+                .disabled(session.host == nil)
+                .accessibilityHint(session.host == nil ? Text("") : Text("Switches to its window"))
+            if session.request != nil {
+                HStack(spacing: 6) {
+                    ActionButton(title: "Deny") { onAnswer(false) }
+                    ActionButton(title: "Allow", primary: true) { onAnswer(true) }
+                }
+                .disabled(!armed)
+                .opacity(armed ? 1 : 0.45)
+                .animation(Motion.fadeIn, value: armed)
+            }
+        }
+        .frame(height: 40)
+        .padding(.horizontal, 8)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(.white.opacity(hovering ? 0.08 : 0)))
+        .onHover { hovering = $0 && session.host != nil }
+        .animation(Motion.fadeIn, value: hovering)
+        .task(id: session.request?.since) {
+            armed = false
+            guard session.request != nil else { return }
+            try? await Task.sleep(for: .seconds(Motion.decisionArmDelay))
+            armed = true
+        }
     }
 
     private var content: some View {
@@ -531,33 +560,31 @@ struct ClaudeSessionRow: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                 Text(session.detail)
-                    .font(.system(size: 11.5))
+                    .font(session.request?.tool == "Bash" ? .system(size: 11.5).monospaced() : .system(size: 11.5))
                     .foregroundStyle(session.state == .waiting ? ClaudeTint.amber
                                                                : Color.dimWhite(0.55, contrast))
                     .truncationMode(.middle)
             }
             .lineLimit(1)
             Spacer(minLength: 8)
-            switch session.state {
-            case .working:
-                Text(session.startedAt, style: .timer)
-                    .font(.system(size: 11.5).monospacedDigit())
-                    .foregroundStyle(Color.dimWhite(0.55, contrast))
-            case .waiting:
-                Text("Needs you")
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(ClaudeTint.amber)
-            case .done:
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(ClaudeTint.green)
-                    .accessibilityLabel("Done")
+            if session.request == nil {
+                switch session.state {
+                case .working:
+                    Text(session.startedAt, style: .timer)
+                        .font(.system(size: 11.5).monospacedDigit())
+                        .foregroundStyle(Color.dimWhite(0.55, contrast))
+                case .waiting:
+                    Text("Needs you")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(ClaudeTint.amber)
+                case .done:
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(ClaudeTint.green)
+                        .accessibilityLabel("Done")
+                }
             }
         }
-        .frame(height: 40)
-        .padding(.horizontal, 8)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(.white.opacity(hovering ? 0.08 : 0)))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

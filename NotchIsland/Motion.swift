@@ -53,6 +53,9 @@ enum Motion {
     /// trigger. The disruptive big card waits longer than the light side controls.
     static let hoverInBig: TimeInterval = 0.22
     static let hoverInSide: TimeInterval = 0.12
+    /// Allow / Deny stay inert this long after they appear, so a pointer that
+    /// was already resting where the card drops can't approve by accident.
+    static let decisionArmDelay: TimeInterval = 0.6
 
     /// Staggered reveal delays: container → artwork → text → progress → controls.
     static let staggerArtwork  = 0.08
