@@ -25,8 +25,9 @@ struct Haptics {
 /// Springs drive geometry (size/position/shape); easing drives opacity/color.
 /// Collapse is deliberately faster than expand.
 enum Motion {
-    static let expand   = Animation.spring(response: 0.38, dampingFraction: 0.78)
-    static let collapse = Animation.spring(response: 0.28, dampingFraction: 0.85)
+    // A touch bouncier than critically damped, for a "jelly" opening feel.
+    static let expand   = Animation.spring(response: 0.40, dampingFraction: 0.68)
+    static let collapse = Animation.spring(response: 0.28, dampingFraction: 0.82)
     static let snappy   = Animation.spring(response: 0.22, dampingFraction: 0.9)
     static let fadeIn   = Animation.easeOut(duration: 0.18)
     static let fadeOut  = Animation.easeIn(duration: 0.12)

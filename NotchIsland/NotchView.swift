@@ -21,14 +21,25 @@ struct NotchRootView: View {
             let nw = max(0, geo.size.width - margin * 2)   // side margins
             let nh = max(0, geo.size.height - margin)       // bottom margin only
             let contentH = max(0, nh - inset)               // usable area below the notch
-            UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: radius(forContentHeight: contentH),
-                bottomTrailingRadius: radius(forContentHeight: contentH),
-                topTrailingRadius: 0,
-                style: .continuous
-            )
-            .fill(Color.black)
+            let r = radius(forContentHeight: contentH)
+            let shape = UnevenRoundedRectangle(
+                topLeadingRadius: 0, bottomLeadingRadius: r,
+                bottomTrailingRadius: r, topTrailingRadius: 0, style: .continuous)
+            ZStack {
+                shape.fill(Color.black)
+                // Album art, heavily blurred + dimmed, tints the now-playing card.
+                if showArtBackdrop, let art = model.artwork {
+                    Image(nsImage: art)
+                        .resizable().scaledToFill()
+                        .frame(width: nw, height: nh).clipped()
+                        .blur(radius: 34)
+                        .overlay(Color.black.opacity(0.34))
+                        .opacity(0.9)
+                        .clipShape(shape)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
             .overlay(alignment: .top) {
                 contentLayer
                     .frame(width: nw, height: contentH)
@@ -44,6 +55,7 @@ struct NotchRootView: View {
                 }
             }
             .animation(Motion.fadeIn, value: showsCardTabs)
+            .animation(Motion.fadeIn, value: showArtBackdrop)
             .frame(width: nw, height: nh)
             // Pin is toggled from the menu bar only — clicking the notch used to
             // pin it by accident (a missed button tap kept it stuck open).
@@ -67,6 +79,12 @@ struct NotchRootView: View {
     private var showsCardTabs: Bool {
         !model.snapActive && model.presentation == .expanded && model.topInset > 0
             && model.cardPages.count > 1 && model.cardPages.contains(model.expandedKind)
+    }
+
+    /// Blurred-artwork card background — only the expanded now-playing card.
+    private var showArtBackdrop: Bool {
+        !model.snapActive && model.presentation == .expanded
+            && model.expandedKind == .nowPlaying && model.hasNowPlaying && model.artwork != nil
     }
 
     /// Interpolate the bottom corner radius (12 collapsed → 26 expanded) from
