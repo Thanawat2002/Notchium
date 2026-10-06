@@ -101,6 +101,9 @@ struct MenuContent: View {
         .keyboardShortcut("m", modifiers: [.command, .option, .control])
         Divider()
         Toggle("Keep Expanded", isOn: $model.pinned)
+        Toggle("Launch at Login", isOn: Binding(
+            get: { LaunchAtLogin.isEnabled },
+            set: { LaunchAtLogin.setEnabled($0) }))
         Divider()
         Button("Quit Notch Island") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")

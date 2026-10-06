@@ -55,10 +55,11 @@
 - ✅ เสียบ/ถอด/จัดเรียงจอ → ปรับตามทันที (`didChangeScreenParametersNotification`) ไม่ต้องรีสตาร์ท
 - ⏳ full-screen / Stage Manager / สลับ Space — ยังไม่ได้ทดสอบเจาะจง (collectionBehavior รองรับ all-spaces + fullScreenAuxiliary อยู่แล้ว)
 
-## Phase 5 — Settings & lifecycle
-- หน้า Preferences: เลือกจอ, ขนาด/ระยะ, เปิดปิดฟีเจอร์
-- Launch at Login, hotkey เปิด/ย่อ
-- บันทึกค่าที่ตั้งไว้ (UserDefaults)
+## Phase 5 — Settings & lifecycle (กำลังทำ)
+- ✅ **Launch at Login** — `SMAppService.mainApp` (macOS 13+, ไม่ต้องมี helper) + toggle ในเมนู (`LaunchAtLogin.swift`), เด้งหน้า Login Items ถ้าต้อง approval
+- ⏳ หน้า Preferences: เลือกจอ, ขนาด/ระยะ, เปิดปิดฟีเจอร์
+- ⏳ hotkey เปิด/ย่อ (มี ⌃⌥⌘M สำหรับ mic แล้ว)
+- ⏳ บันทึกค่าที่ตั้งไว้ (UserDefaults)
 
 ## Phase 6 — Distribution 📦
 - App icon + branding, code sign + notarize
